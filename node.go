@@ -23,5 +23,12 @@
 package main
 
 type Node struct {
-	name string
+	Magic uint8
+	Size  uint64
+	Atime int64
+	Mtime int64
+	Ctime int64
+	Mode  uint32
+	Uid   uint32
+	Gid   uint32
 }

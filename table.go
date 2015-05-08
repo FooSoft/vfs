@@ -29,7 +29,8 @@ import (
 )
 
 type NodeTable struct {
-	nodes []Node
+	Magic uint16
+	Nodes []Node
 }
 
 func NewNodeTable() *NodeTable {
