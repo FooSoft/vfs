@@ -22,13 +22,6 @@
 
 package main
 
-type Database struct {
-}
-
-func (*Database) load(dir string) {
-
-}
-
-func (*Database) save(dir string) {
-
+type Node struct {
+	name string
 }

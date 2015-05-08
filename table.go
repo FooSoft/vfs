@@ -22,6 +22,31 @@
 
 package main
 
-type FileTableHeader struct {
-	magic uint16
+import (
+	"bytes"
+	"encoding/binary"
+	"io/ioutil"
+)
+
+type NodeTable struct {
+	nodes []Node
+}
+
+func NewNodeTable() *NodeTable {
+	return &NodeTable{}
+}
+
+func (this *NodeTable) load(fname string) error {
+	data, err := ioutil.ReadFile(fname)
+	if err != nil {
+		return err
+	}
+
+	reader := bytes.NewReader(data)
+
+	if err := binary.Read(reader, binary.BigEndian, this); err != nil {
+		return err
+	}
+
+	return nil
 }
