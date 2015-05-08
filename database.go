@@ -22,6 +22,42 @@
 
 package main
 
-func main() {
+import (
+	"bytes"
+	"encoding/binary"
+	"io/ioutil"
+)
+
+type Database struct {
+}
+
+func (*Database) load(dir string) {
+
+}
+
+func (*Database) save(dir string) {
+
+}
+
+type FileTable struct {
+}
+
+func (*FileTable) load(fname string) error {
+	data, err := ioutil.ReadFile(fname)
+	if err != nil {
+		return err
+	}
+
+	reader := bytes.NewReader(data)
+
+	header := FileTableHeader{}
+	if err := binary.Read(reader, binary.BigEndian, &header); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (*FileTable) save(fname string) {
 
 }
