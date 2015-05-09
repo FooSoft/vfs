@@ -22,13 +22,16 @@
 
 package main
 
-type Node struct {
-	Magic uint8
-	Size  uint64
-	Atime int64
-	Mtime int64
-	Ctime int64
-	Mode  uint32
-	Uid   uint32
-	Gid   uint32
+import (
+	"time"
+)
+
+type Version struct {
+	root    string
+	parent  *Version
+	version time.Time
+}
+
+func (this *Version) NewVersion(root string, parent *Version) *Version {
+	return &Version{root: root, parent: parent}
 }

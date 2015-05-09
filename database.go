@@ -22,13 +22,39 @@
 
 package main
 
+import (
+	"io/ioutil"
+	"os"
+)
+
 type Database struct {
 }
 
-func (*Database) load(dir string) {
+func (this *Database) load(dir string) error {
+	dirs, err := this.scan(dir)
+	if err != nil {
+		return err
+	}
 
+	return err
 }
 
-func (*Database) save(dir string) {
+func (this *Database) scan(dir string) ([]os.FileInfo, error) {
+	nodes, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var dirs []os.FileInfo
+	for _, node := range nodes {
+		if node.IsDir() {
+			dirs = append(dirs, node)
+		}
+	}
+
+	return dirs, nil
+}
+
+func (this *Database) save(dir string) {
 
 }
