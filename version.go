@@ -26,12 +26,17 @@ import (
 	"time"
 )
 
-type Version struct {
-	root    string
-	parent  *Version
-	version time.Time
+type VersionMeta struct {
+	path      string
+	timestamp time.Time
 }
 
-func (this *Version) NewVersion(root string, parent *Version) *Version {
-	return &Version{root: root, parent: parent}
+type Version struct {
+	base      string
+	parent    *Version
+	timestamp time.Time
+}
+
+func NewVersion(base string, timestamp time.Time, parent *Version) *Version {
+	return &Version{base, parent, timestamp}
 }

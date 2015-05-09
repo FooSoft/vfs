@@ -23,5 +23,6 @@
 package main
 
 func main() {
-
+	var db Database
+	db.load("fs")
 }
