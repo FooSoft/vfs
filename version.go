@@ -23,8 +23,11 @@
 package main
 
 import (
+	"bazil.org/fuse"
+	"bazil.org/fuse/fs"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/net/context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -70,6 +73,40 @@ func newVersion(base string, parent *version) (*version, error) {
 	}
 
 	return ver, nil
+}
+
+func (this *version) Attr(a *fuse.Attr) {
+	// type Attr struct {
+	// Inode  uint64      // inode number
+	// Size   uint64      // size in bytes
+	// Blocks uint64      // size in blocks
+	// Atime  time.Time   // time of last access
+	// Mtime  time.Time   // time of last modification
+	// Ctime  time.Time   // time of last inode change
+	// Crtime time.Time   // time of creation (OS X only)
+	// Mode   os.FileMode // file mode
+	// Nlink  uint32      // number of links
+	// Uid    uint32      // owner uid
+	// Gid    uint32      // group gid
+	// Rdev   uint32      // device numbers
+	// Flags  uint32      // chflags(2) flags (OS X only)
+	a.Inode = 1
+	a.Mode = os.ModeDir | 0755
+}
+
+func (this *version) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	// if name == "hello" {
+	// 	return File{}, nil
+	// }
+	return nil, fuse.ENOENT
+}
+
+func (this *version) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+	var dirDirs = []fuse.Dirent{
+		{Inode: 2, Name: "hello", Type: fuse.DT_File},
+	}
+
+	return dirDirs, nil
 }
 
 func (this *version) loadMetadata() error {

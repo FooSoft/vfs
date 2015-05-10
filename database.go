@@ -23,6 +23,7 @@
 package main
 
 import (
+	"bazil.org/fuse/fs"
 	"io/ioutil"
 	"path/filepath"
 )
@@ -41,6 +42,10 @@ func newDatabase(dir string) (*database, error) {
 	return db, nil
 }
 
+func (this *database) Root() (fs.Node, error) {
+	return this.lastVersion(), nil
+}
+
 func (this *database) load(dir string) error {
 	base, err := filepath.Abs(dir)
 	if err != nil {
@@ -52,7 +57,7 @@ func (this *database) load(dir string) error {
 		return err
 	}
 
-	vers, err := this.version(dirs)
+	vers, err := this.versions(dirs)
 	if err != nil {
 		return err
 	}
@@ -67,7 +72,7 @@ func (this *database) save() error {
 	return nil
 }
 
-func (this *database) version(dirs []string) ([]*version, error) {
+func (this *database) versions(dirs []string) ([]*version, error) {
 	var vers []*version
 
 	var parent *version
@@ -82,6 +87,15 @@ func (this *database) version(dirs []string) ([]*version, error) {
 	}
 
 	return vers, nil
+}
+
+func (this *database) lastVersion() *version {
+	count := len(this.vers)
+	if count == 0 {
+		return nil
+	}
+
+	return this.vers[count-1]
 }
 
 func (this *database) scan(dir string) ([]string, error) {
