@@ -23,18 +23,13 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type Database struct {
 	base     string
-	versions []Version
+	versions []*Version
 }
 
 func NewDatabase(dir string) (*Database, error) {
@@ -52,65 +47,51 @@ func (this *Database) load(dir string) error {
 		return err
 	}
 
-	this.base = base
-
-	dirs, err := this.scan(dir)
+	dirs, err := this.scan(base)
 	if err != nil {
 		return err
 	}
 
-	this.version(dirs)
+	versions, err := this.version(dirs)
+	if err != nil {
+		return err
+	}
+
+	this.base = base
+	this.versions = versions
+
 	return nil
 }
 
-func (this *Database) version(dirs []string) []Version {
-	versions := make([]Version, 0, len(dirs))
+func (this *Database) version(dirs []string) ([]*Version, error) {
+	var versions []*Version
+	var parent *Version
 
-	// var parent *Version
-	// for _, dir := range dirs {
-	// 	base := filepath.Join(this.base, dir)
-	// 	// timestamp := this.timestamp(dir)
-	// 	// version := NewVersion(base, timestamp, parent)
-	// 	// parent = version
-	// }
+	for _, dir := range dirs {
+		version, err := NewVersion(dir, parent)
+		if err != nil {
+			return nil, err
+		}
 
-	return versions
+		parent = version
+		versions = append(versions, version)
+	}
+
+	return versions, nil
 }
 
-func (this *Database) scan(dir string) ([]VersionMeta, error) {
+func (this *Database) scan(dir string) ([]string, error) {
 	nodes, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 
-	re, err := regexp.Compile(`^vfs_([0-9a-f])$`)
-
-	var meta []VersionMeta
+	var dirs []string
 	for _, node := range nodes {
-		if !node.IsDir() {
-			continue
+		if node.IsDir() {
+			dirs = append(dirs, node.Name())
 		}
-
-		matches := re.FindStringSubmatch(node.Name())
-		if len(matches) < 2 {
-			continue
-		}
-
-		timestamp, err := strconv.ParseInt(matches[1], 16, 64)
-		if err != nil {
-			continue
-		}
-
-		item := VersionMeta{
-			path:      filepath.Join(dir, matches[0]),
-			timestamp: time.Unix(timestamp, 0)}
-
-		meta = append(meta, item)
 	}
 
-	return meta, nil
-}
-
-func (this *Database) scanProps(path string) error {
-
+	return dirs, nil
 }

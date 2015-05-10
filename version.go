@@ -23,13 +23,11 @@
 package main
 
 import (
+	"fmt"
+	"regexp"
+	"strconv"
 	"time"
 )
-
-type VersionMeta struct {
-	path      string
-	timestamp time.Time
-}
 
 type Version struct {
 	base      string
@@ -37,6 +35,21 @@ type Version struct {
 	timestamp time.Time
 }
 
-func NewVersion(base string, timestamp time.Time, parent *Version) *Version {
-	return &Version{base, parent, timestamp}
+func NewVersion(base string, parent *Version) (*Version, error) {
+	re, err := regexp.Compile(`/vfs_([0-9a-f])$`)
+	if err != nil {
+		return nil, err
+	}
+
+	matches := re.FindStringSubmatch(base)
+	if len(matches) < 2 {
+		return nil, fmt.Errorf("invalid version identifier for %s", base)
+	}
+
+	timeval, err := strconv.ParseInt(matches[1], 16, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Version{base: base, parent: parent, timestamp: time.Unix(timeval, 0)}, nil
 }
