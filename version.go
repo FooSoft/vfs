@@ -23,16 +23,25 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"time"
 )
 
+type Metadata struct {
+	Deleted []string
+}
+
 type Version struct {
 	base      string
 	parent    *Version
 	timestamp time.Time
+	metadata  Metadata
 }
 
 func NewVersion(base string, parent *Version) (*Version, error) {
@@ -51,5 +60,41 @@ func NewVersion(base string, parent *Version) (*Version, error) {
 		return nil, err
 	}
 
-	return &Version{base: base, parent: parent, timestamp: time.Unix(timeval, 0)}, nil
+	version := &Version{
+		base:      base,
+		parent:    parent,
+		timestamp: time.Unix(timeval, 0)}
+
+	return version, nil
+}
+
+func (this *Version) loadMetadata() error {
+	path := this.metadataPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return nil
+	}
+
+	bytes, err := ioutil.ReadFile(this.metadataPath())
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(bytes, &this.metadata); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (this *Version) saveMetadata() error {
+	js, err := json.Marshal(this.metadata)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(this.metadataPath(), js, 0644)
+}
+
+func (this *Version) metadataPath() string {
+	return filepath.Join(this.base, "meta.json")
 }
