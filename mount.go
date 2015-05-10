@@ -2,21 +2,13 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"os"
-
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	_ "bazil.org/fuse/fs/fstestutil"
+	// "flag"
+	// "fmt"
 	"golang.org/x/net/context"
+	"os"
 )
-
-var Usage = func() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, "  %s MOUNTPOINT\n", os.Args[0])
-	flag.PrintDefaults()
-}
 
 // func main() {
 // 	flag.Usage = Usage
@@ -68,6 +60,7 @@ func (Dir) Attr(a *fuse.Attr) {
 }
 
 func (Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+
 	if name == "hello" {
 		return File{}, nil
 	}

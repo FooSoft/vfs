@@ -60,12 +60,16 @@ func newVersion(base string, parent *version) (*version, error) {
 		return nil, err
 	}
 
-	version := &version{
+	ver := &version{
 		base:      base,
 		parent:    parent,
 		timestamp: time.Unix(timeval, 0)}
 
-	return version, nil
+	if err := ver.loadMetadata(); err != nil {
+		return nil, err
+	}
+
+	return ver, nil
 }
 
 func (this *version) loadMetadata() error {
@@ -97,4 +101,8 @@ func (this *version) saveMetadata() error {
 
 func (this *version) metadataPath() string {
 	return filepath.Join(this.base, "meta.json")
+}
+
+func (this *version) rootPath() string {
+	return filepath.Join(this.base, "root")
 }
