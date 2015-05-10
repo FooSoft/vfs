@@ -33,18 +33,18 @@ import (
 	"time"
 )
 
-type Metadata struct {
+type metadata struct {
 	Deleted []string
 }
 
-type Version struct {
+type version struct {
 	base      string
-	parent    *Version
+	parent    *version
 	timestamp time.Time
-	metadata  Metadata
+	meta      metadata
 }
 
-func NewVersion(base string, parent *Version) (*Version, error) {
+func newVersion(base string, parent *version) (*version, error) {
 	re, err := regexp.Compile(`/vfs_([0-9a-f])$`)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func NewVersion(base string, parent *Version) (*Version, error) {
 		return nil, err
 	}
 
-	version := &Version{
+	version := &version{
 		base:      base,
 		parent:    parent,
 		timestamp: time.Unix(timeval, 0)}
@@ -68,7 +68,7 @@ func NewVersion(base string, parent *Version) (*Version, error) {
 	return version, nil
 }
 
-func (this *Version) loadMetadata() error {
+func (this *version) loadMetadata() error {
 	path := this.metadataPath()
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return nil
@@ -79,15 +79,15 @@ func (this *Version) loadMetadata() error {
 		return err
 	}
 
-	if err := json.Unmarshal(bytes, &this.metadata); err != nil {
+	if err := json.Unmarshal(bytes, &this.meta); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (this *Version) saveMetadata() error {
-	js, err := json.Marshal(this.metadata)
+func (this *version) saveMetadata() error {
+	js, err := json.Marshal(this.meta)
 	if err != nil {
 		return err
 	}
@@ -95,6 +95,6 @@ func (this *Version) saveMetadata() error {
 	return ioutil.WriteFile(this.metadataPath(), js, 0644)
 }
 
-func (this *Version) metadataPath() string {
+func (this *version) metadataPath() string {
 	return filepath.Join(this.base, "meta.json")
 }

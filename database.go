@@ -27,13 +27,13 @@ import (
 	"path/filepath"
 )
 
-type Database struct {
-	base     string
-	versions []*Version
+type database struct {
+	base string
+	vers []*version
 }
 
-func NewDatabase(dir string) (*Database, error) {
-	db := &Database{base: dir}
+func newDatabase(dir string) (*database, error) {
+	db := &database{base: dir}
 	if err := db.load(dir); err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func NewDatabase(dir string) (*Database, error) {
 	return db, nil
 }
 
-func (this *Database) load(dir string) error {
+func (this *database) load(dir string) error {
 	base, err := filepath.Abs(dir)
 	if err != nil {
 		return err
@@ -52,35 +52,39 @@ func (this *Database) load(dir string) error {
 		return err
 	}
 
-	versions, err := this.version(dirs)
+	vers, err := this.version(dirs)
 	if err != nil {
 		return err
 	}
 
 	this.base = base
-	this.versions = versions
+	this.vers = vers
 
 	return nil
 }
 
-func (this *Database) version(dirs []string) ([]*Version, error) {
-	var versions []*Version
-	var parent *Version
+func (this *database) save() error {
+	return nil
+}
 
+func (this *database) version(dirs []string) ([]*version, error) {
+	var vers []*version
+
+	var parent *version
 	for _, dir := range dirs {
-		version, err := NewVersion(dir, parent)
+		ver, err := newVersion(dir, parent)
 		if err != nil {
 			return nil, err
 		}
 
-		parent = version
-		versions = append(versions, version)
+		vers = append(vers, ver)
+		parent = ver
 	}
 
-	return versions, nil
+	return vers, nil
 }
 
-func (this *Database) scan(dir string) ([]string, error) {
+func (this *database) scan(dir string) ([]string, error) {
 	nodes, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, err

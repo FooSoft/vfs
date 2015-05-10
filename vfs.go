@@ -22,7 +22,15 @@
 
 package main
 
+import (
+	"log"
+)
+
 func main() {
-	var db Database
-	db.load("fs")
+	db, err := newDatabase("fs")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	db.save()
 }
