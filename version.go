@@ -58,17 +58,20 @@ func (this versionedDir) Attr(attr *fuse.Attr) {
 }
 
 func (this versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
-	// var entries []fuse.Dirent
-	// for name, dir := range versionedDir {
-	// entry := fuse.Dirent{Inode: dir.
-	// }
+	var entries []fuse.Dirent
+
+	for name, dir := range this.dirs {
+		entry := fuse.Dirent{Inode: dir.inode, Name: name, Type: fuse.DT_File}
+		entries = append(entries, entry)
+	}
+
+	for name, file := range this.files {
+		entry := fuse.Dirent{Inode: file.inode, Name: name, Type: fuse.DT_Dir}
+		entries = append(entries, entry)
+	}
 
 	return nil, nil
 }
-
-// var dirDirs = []fuse.Dirent{
-// 	{Inode: 2, Name: "hello", Type: fuse.DT_File},
-// }
 
 type version struct {
 	base      string
