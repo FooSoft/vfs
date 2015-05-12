@@ -23,7 +23,6 @@
 package main
 
 import (
-	"bazil.org/fuse/fs"
 	"io/ioutil"
 	"path/filepath"
 )
@@ -40,10 +39,6 @@ func newDatabase(dir string) (*database, error) {
 	}
 
 	return db, nil
-}
-
-func (this *database) Root() (fs.Node, error) {
-	return this.lastVersion(), nil
 }
 
 func (this *database) load(dir string) error {

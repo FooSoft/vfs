@@ -23,12 +23,11 @@
 package main
 
 import (
-	// "bazil.org/fuse"
-	// "bazil.org/fuse/fs"
-	// "golang.org/x/net/context"
-
+	"bazil.org/fuse"
+	"bazil.org/fuse/fs"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/net/context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -42,14 +41,34 @@ type versionMetadata struct {
 }
 
 type versionedFile struct {
-	info os.FileInfo
+	info  os.FileInfo
+	inode uint64
 }
 
 type versionedDir struct {
 	dirs  map[string]versionedDir
 	files map[string]versionedFile
 	info  os.FileInfo
+	inode uint64
 }
+
+func (this versionedDir) Attr(attr *fuse.Attr) {
+	attr.Mode = this.info.Mode()
+	attr.Inode = this.inode
+}
+
+func (this versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+	// var entries []fuse.Dirent
+	// for name, dir := range versionedDir {
+	// entry := fuse.Dirent{Inode: dir.
+	// }
+
+	return nil, nil
+}
+
+// var dirDirs = []fuse.Dirent{
+// 	{Inode: 2, Name: "hello", Type: fuse.DT_File},
+// }
 
 type version struct {
 	base      string
@@ -57,6 +76,7 @@ type version struct {
 	timestamp time.Time
 	meta      versionMetadata
 	root      versionedDir
+	inodeCnt  uint64
 }
 
 func newVersion(base string, parent *version) (*version, error) {
@@ -129,14 +149,14 @@ func (this *version) buildDir(path string, dir *versionedDir) error {
 
 	for name, info := range nodes {
 		if info.IsDir() {
-			subDir := versionedDir{info: info}
+			subDir := versionedDir{info: info, inode: this.allocInode()}
 			subDirPath := filepath.Join(path, name)
 			if err := this.buildDir(subDirPath, &subDir); err != nil {
 				return err
 			}
 			dir.dirs[name] = subDir
 		} else {
-			dir.files[name] = versionedFile{info: info}
+			dir.files[name] = versionedFile{info: info, inode: this.allocInode()}
 		}
 	}
 
@@ -149,7 +169,7 @@ func (this *version) scanFs() error {
 		return err
 	}
 
-	this.root = versionedDir{info: rootNode}
+	this.root = versionedDir{info: rootNode, inode: this.allocInode()}
 	return this.buildDir(this.rootPath(), &this.root)
 }
 
@@ -186,6 +206,15 @@ func (this *version) metadataPath() string {
 
 func (this *version) rootPath() string {
 	return filepath.Join(this.base, "root")
+}
+
+func (this *version) allocInode() uint64 {
+	this.inodeCnt++
+	return this.inodeCnt
+}
+
+func (this *version) Root() (fs.Node, error) {
+	return this.root, nil
 }
 
 // func (this *version) Attr(a *fuse.Attr) {
