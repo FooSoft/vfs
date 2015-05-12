@@ -37,17 +37,17 @@ import (
 	"time"
 )
 
-type metadata struct {
+type versionMetadata struct {
 	Deleted []string
 }
 
-type file struct {
+type versionedFile struct {
 	info os.FileInfo
 }
 
-type directory struct {
-	dirs  map[string]directory
-	files map[string]file
+type versionedDir struct {
+	dirs  map[string]versionedDir
+	files map[string]versionedFile
 	info  os.FileInfo
 }
 
@@ -55,8 +55,8 @@ type version struct {
 	base      string
 	parent    *version
 	timestamp time.Time
-	meta      metadata
-	root      directory
+	meta      versionMetadata
+	root      versionedDir
 }
 
 func newVersion(base string, parent *version) (*version, error) {
@@ -94,7 +94,8 @@ func newVersion(base string, parent *version) (*version, error) {
 func (this *version) scanDir(path string) (map[string]os.FileInfo, error) {
 	ownNodes := make(map[string]os.FileInfo)
 	{
-		nodes, err := ioutil.ReadDir(this.rebasePath(path))
+		fullPath := filepath.Join(this.rootPath(), path)
+		nodes, err := ioutil.ReadDir(fullPath)
 		if err != nil {
 			return nil, err
 		}
@@ -113,23 +114,29 @@ func (this *version) scanDir(path string) (map[string]os.FileInfo, error) {
 		return nil, err
 	}
 
-	for ownName, ownNode := range ownNodes {
-		baseNodes[ownName] = ownNode
+	for ownName, ownInfo := range ownNodes {
+		baseNodes[ownName] = ownInfo
 	}
 
 	return baseNodes, nil
 }
 
-func (this *version) buildDir(path string, dir *directory) error {
-	nodes, err := ioutil.ReadDir(path)
+func (this *version) buildDir(path string, dir *versionedDir) error {
+	nodes, err := this.scanDir(path)
 	if err != nil {
 		return err
 	}
 
-	for _, node := range nodes {
-		if node.IsDir() {
-
+	for name, info := range nodes {
+		if info.IsDir() {
+			subDir := versionedDir{info: info}
+			subDirPath := filepath.Join(path, name)
+			if err := this.buildDir(subDirPath, &subDir); err != nil {
+				return err
+			}
+			dir.dirs[name] = subDir
 		} else {
+			dir.files[name] = versionedFile{info: info}
 		}
 	}
 
@@ -137,6 +144,12 @@ func (this *version) buildDir(path string, dir *directory) error {
 }
 
 func (this *version) scanFs() error {
+	rootNode, err := os.Stat(this.rootPath())
+	if err != nil {
+		return err
+	}
+
+	this.root = versionedDir{info: rootNode}
 	return this.buildDir(this.rootPath(), &this.root)
 }
 
@@ -173,10 +186,6 @@ func (this *version) metadataPath() string {
 
 func (this *version) rootPath() string {
 	return filepath.Join(this.base, "root")
-}
-
-func (this *version) rebasePath(path string) string {
-	return filepath.Join(this.rootPath(), path)
 }
 
 // func (this *version) Attr(a *fuse.Attr) {
