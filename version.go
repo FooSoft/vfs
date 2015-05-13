@@ -40,15 +40,20 @@ type versionMetadata struct {
 	Deleted []string
 }
 
+type versionedNode struct {
+	path string
+	info os.FileInfo
+}
+
 type versionedFile struct {
-	info  os.FileInfo
+	node  versionedNode
 	inode uint64
 }
 
 func (this versionedFile) Attr(attr *fuse.Attr) {
-	attr.Mode = this.info.Mode()
+	attr.Mode = this.node.info.Mode()
 	attr.Inode = this.inode
-	attr.Size = uint64(this.info.Size())
+	attr.Size = uint64(this.node.info.Size())
 }
 
 func (versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
@@ -58,12 +63,12 @@ func (versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
 type versionedDir struct {
 	dirs  map[string]versionedDir
 	files map[string]versionedFile
-	info  os.FileInfo
+	node  versionedNode
 	inode uint64
 }
 
 func (this versionedDir) Attr(attr *fuse.Attr) {
-	attr.Mode = this.info.Mode()
+	attr.Mode = this.node.info.Mode()
 	attr.Inode = this.inode
 }
 
@@ -136,8 +141,8 @@ func newVersion(base string, parent *version) (*version, error) {
 	return ver, nil
 }
 
-func (this *version) scanDir(path string) (map[string]os.FileInfo, error) {
-	ownNodes := make(map[string]os.FileInfo)
+func (this *version) scanDir(path string) (map[string]versionedNode, error) {
+	ownNodes := make(map[string]versionedNode)
 	{
 		fullPath := filepath.Join(this.rootPath(), path)
 		nodes, err := ioutil.ReadDir(fullPath)
@@ -146,7 +151,10 @@ func (this *version) scanDir(path string) (map[string]os.FileInfo, error) {
 		}
 
 		for _, node := range nodes {
-			ownNodes[node.Name()] = node
+			name := node.Name()
+			ownNodes[name] = versionedNode{
+				info: node,
+				path: filepath.Join(fullPath, name)}
 		}
 	}
 
@@ -172,16 +180,16 @@ func (this *version) buildDir(path string, dir *versionedDir) error {
 		return err
 	}
 
-	for name, info := range nodes {
-		if info.IsDir() {
-			subDir := versionedDir{info: info, inode: this.allocInode()}
+	for name, node := range nodes {
+		if node.info.IsDir() {
+			subDir := versionedDir{node: node, inode: this.allocInode()}
 			subDirPath := filepath.Join(path, name)
 			if err := this.buildDir(subDirPath, &subDir); err != nil {
 				return err
 			}
 			dir.dirs[name] = subDir
 		} else {
-			dir.files[name] = versionedFile{info: info, inode: this.allocInode()}
+			dir.files[name] = versionedFile{node: node, inode: this.allocInode()}
 		}
 	}
 
@@ -194,7 +202,10 @@ func (this *version) scanFs() error {
 		return err
 	}
 
-	this.root = versionedDir{info: rootNode, inode: this.allocInode()}
+	this.root = versionedDir{
+		node:  versionedNode{path: this.rootPath(), info: rootNode},
+		inode: this.allocInode()}
+
 	return this.buildDir(this.rootPath(), &this.root)
 }
 
