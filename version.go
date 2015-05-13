@@ -45,6 +45,16 @@ type versionedFile struct {
 	inode uint64
 }
 
+func (this versionedFile) Attr(attr *fuse.Attr) {
+	attr.Mode = this.info.Mode()
+	attr.Inode = this.inode
+	attr.Size = uint64(this.info.Size())
+}
+
+func (versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
+	return nil, nil
+}
+
 type versionedDir struct {
 	dirs  map[string]versionedDir
 	files map[string]versionedFile
@@ -71,6 +81,18 @@ func (this versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) 
 	}
 
 	return nil, nil
+}
+
+func (this versionedDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	if dir, ok := this.dirs[name]; ok {
+		return dir, nil
+	}
+
+	if file, ok := this.files[name]; ok {
+		return file, nil
+	}
+
+	return nil, fuse.ENOENT
 }
 
 type version struct {
@@ -219,37 +241,3 @@ func (this *version) allocInode() uint64 {
 func (this *version) Root() (fs.Node, error) {
 	return this.root, nil
 }
-
-// func (this *version) Attr(a *fuse.Attr) {
-// 	// type Attr struct {
-// 	// Inode  uint64      // inode number
-// 	// Size   uint64      // size in bytes
-// 	// Blocks uint64      // size in blocks
-// 	// Atime  time.Time   // time of last access
-// 	// Mtime  time.Time   // time of last modification
-// 	// Ctime  time.Time   // time of last inode change
-// 	// Crtime time.Time   // time of creation (OS X only)
-// 	// Mode   os.FileMode // file mode
-// 	// Nlink  uint32      // number of links
-// 	// Uid    uint32      // owner uid
-// 	// Gid    uint32      // group gid
-// 	// Rdev   uint32      // device numbers
-// 	// Flags  uint32      // chflags(2) flags (OS X only)
-// 	a.Inode = 1
-// 	a.Mode = os.ModeDir | 0755
-// }
-
-// func (this *version) Lookup(ctx context.Context, name string) (fs.Node, error) {
-// 	// if name == "hello" {
-// 	// 	return File{}, nil
-// 	// }
-// 	return nil, fuse.ENOENT
-// }
-
-// func (this *version) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
-// 	var dirDirs = []fuse.Dirent{
-// 		{Inode: 2, Name: "hello", Type: fuse.DT_File},
-// 	}
-
-// 	return dirDirs, nil
-// }
