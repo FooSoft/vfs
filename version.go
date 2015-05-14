@@ -85,6 +85,18 @@ func newVersion(base string, parent *version) (*version, error) {
 }
 
 func (this *version) scanDir(path string) (map[string]versionedNode, error) {
+	var baseNodes map[string]versionedNode
+
+	if this.parent != nil {
+		var err error
+		baseNodes = make(map[string]versionedNode)
+
+		baseNodes, err = this.parent.scanDir(path)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	ownNodes := make(map[string]versionedNode)
 	{
 		fullPath := filepath.Join(this.rootPath(), path)
@@ -101,17 +113,12 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 		}
 	}
 
-	if this.parent == nil {
+	if baseNodes == nil {
 		return ownNodes, nil
 	}
 
-	baseNodes, err := this.parent.scanDir(path)
-	if err != nil {
-		return nil, err
-	}
-
-	for ownName, ownInfo := range ownNodes {
-		baseNodes[ownName] = ownInfo
+	for ownName, ownNode := range ownNodes {
+		baseNodes[ownName] = ownNode
 	}
 
 	return baseNodes, nil
@@ -126,10 +133,12 @@ func (this *version) buildDir(path string, dir *versionedDir) error {
 	for name, node := range nodes {
 		if node.info.IsDir() {
 			subDir := versionedDir{node: node, inode: this.allocInode()}
+
 			subDirPath := filepath.Join(path, name)
 			if err := this.buildDir(subDirPath, &subDir); err != nil {
 				return err
 			}
+
 			dir.dirs[name] = subDir
 		} else {
 			dir.files[name] = versionedFile{node: node, inode: this.allocInode()}
@@ -140,13 +149,13 @@ func (this *version) buildDir(path string, dir *versionedDir) error {
 }
 
 func (this *version) scanFs() error {
-	rootNode, err := os.Stat(this.rootPath())
+	node, err := os.Stat(this.rootPath())
 	if err != nil {
 		return err
 	}
 
 	this.root = versionedDir{
-		node:  versionedNode{path: this.rootPath(), info: rootNode},
+		node:  versionedNode{path: this.rootPath(), info: node},
 		inode: this.allocInode()}
 
 	return this.buildDir(this.rootPath(), &this.root)
@@ -184,7 +193,7 @@ func (this *version) metadataPath() string {
 }
 
 func (this *version) rootPath() string {
-	return filepath.Join(this.base, "root")
+	return this.root.node.path
 }
 
 func (this *version) allocInode() uint64 {
