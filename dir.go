@@ -29,10 +29,18 @@ import (
 )
 
 type versionedDir struct {
-	dirs  map[string]versionedDir
-	files map[string]versionedFile
+	dirs  map[string]*versionedDir
+	files map[string]*versionedFile
 	node  versionedNode
 	inode uint64
+}
+
+func newVersionedDir(node versionedNode, inode uint64) *versionedDir {
+	return &versionedDir{
+		dirs:  make(map[string]*versionedDir),
+		files: make(map[string]*versionedFile),
+		node:  node,
+		inode: inode}
 }
 
 func (this versionedDir) Attr(attr *fuse.Attr) {

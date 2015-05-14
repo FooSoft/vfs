@@ -48,7 +48,7 @@ type version struct {
 	parent    *version
 	timestamp time.Time
 	meta      versionMetadata
-	root      versionedDir
+	root      *versionedDir
 	inodeCnt  uint64
 }
 
@@ -107,9 +107,8 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 
 		for _, node := range nodes {
 			name := node.Name()
-			ownNodes[name] = versionedNode{
-				info: node,
-				path: filepath.Join(fullPath, name)}
+			subPath := filepath.Join(fullPath, name)
+			ownNodes[name] = versionedNode{subPath, node}
 		}
 	}
 
@@ -132,16 +131,15 @@ func (this *version) buildDir(path string, dir *versionedDir) error {
 
 	for name, node := range nodes {
 		if node.info.IsDir() {
-			subDir := versionedDir{node: node, inode: this.allocInode()}
-
+			subDir := newVersionedDir(node, this.allocInode())
 			subDirPath := filepath.Join(path, name)
-			if err := this.buildDir(subDirPath, &subDir); err != nil {
+			if err := this.buildDir(subDirPath, subDir); err != nil {
 				return err
 			}
 
 			dir.dirs[name] = subDir
 		} else {
-			dir.files[name] = versionedFile{node: node, inode: this.allocInode()}
+			dir.files[name] = newVersionedFile(node, this.allocInode())
 		}
 	}
 
@@ -154,11 +152,11 @@ func (this *version) scanFs() error {
 		return err
 	}
 
-	this.root = versionedDir{
-		node:  versionedNode{path: this.rootPath(), info: node},
-		inode: this.allocInode()}
+	this.root = newVersionedDir(
+		versionedNode{path: this.rootPath(), info: node},
+		this.allocInode())
 
-	return this.buildDir(this.rootPath(), &this.root)
+	return this.buildDir(this.rootPath(), this.root)
 }
 
 func (this *version) loadMetadata() error {

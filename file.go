@@ -32,6 +32,10 @@ type versionedFile struct {
 	inode uint64
 }
 
+func newVersionedFile(node versionedNode, inode uint64) *versionedFile {
+	return &versionedFile{node: node, inode: inode}
+}
+
 func (this versionedFile) Attr(attr *fuse.Attr) {
 	attr.Mode = this.node.info.Mode()
 	attr.Inode = this.inode
