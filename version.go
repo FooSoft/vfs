@@ -27,7 +27,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -87,13 +86,9 @@ func newVersion(base string, parent *version) (*version, error) {
 }
 
 func (this *version) scanDir(path string) (map[string]versionedNode, error) {
-	log.Printf("scanDir %s for %p", path, this)
-
 	var baseNodes map[string]versionedNode
 	if this.parent != nil {
 		var err error
-		baseNodes = make(map[string]versionedNode)
-
 		baseNodes, err = this.parent.scanDir(path)
 		if err != nil {
 			return nil, err
@@ -102,15 +97,14 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 
 	ownNodes := make(map[string]versionedNode)
 	{
-		nodes, err := ioutil.ReadDir(path)
+		nodes, err := ioutil.ReadDir(this.rebasePath(path))
 		if err != nil {
 			return nil, err
 		}
 
 		for _, node := range nodes {
 			name := node.Name()
-			subPath := filepath.Join(path, name)
-			ownNodes[name] = versionedNode{subPath, node}
+			ownNodes[name] = versionedNode{this.rebasePath(path, name), node}
 		}
 	}
 
@@ -126,8 +120,6 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 }
 
 func (this *version) buildDir(path string, dir *versionedDir) error {
-	log.Printf("buildDir %s for %p", path, this)
-
 	nodes, err := this.scanDir(path)
 	if err != nil {
 		return err
@@ -151,25 +143,20 @@ func (this *version) buildDir(path string, dir *versionedDir) error {
 }
 
 func (this *version) scanFs() error {
-	log.Printf("scanFs for %p", this)
-
-	node, err := os.Stat(this.rootPath())
+	node, err := os.Stat(this.rebasePath("/"))
 	if err != nil {
 		return err
 	}
 
 	this.root = newVersionedDir(
-		versionedNode{this.rootPath(), node},
+		versionedNode{"/", node},
 		this.allocInode())
 
-	return this.buildDir(this.rootPath(), this.root)
+	return this.buildDir("/", this.root)
 }
 
 func (this *version) loadMetadata() error {
-	log.Printf("loadMetadata %s for %p", this.metadataPath(), this)
-
-	path := this.metadataPath()
-	if _, err := os.Stat(path); os.IsNotExist(err) {
+	if _, err := os.Stat(this.metadataPath()); os.IsNotExist(err) {
 		return nil
 	}
 
@@ -198,8 +185,9 @@ func (this *version) metadataPath() string {
 	return filepath.Join(this.base, "meta.json")
 }
 
-func (this *version) rootPath() string {
-	return filepath.Join(this.base, "root")
+func (this *version) rebasePath(paths ...string) string {
+	combined := append([]string{this.base, "root"}, paths...)
+	return filepath.Join(combined...)
 }
 
 func (this *version) allocInode() uint64 {
