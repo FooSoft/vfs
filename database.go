@@ -42,23 +42,26 @@ func newDatabase(dir string) (*database, error) {
 }
 
 func (this *database) load(dir string) error {
-	base, err := filepath.Abs(dir)
+	var err error
+
+	this.base, err = filepath.Abs(dir)
 	if err != nil {
 		return err
 	}
 
-	dirs, err := this.scan(base)
+	dirs, err := this.scan(this.base)
 	if err != nil {
 		return err
 	}
 
-	vers, err := this.versions(dirs)
+	this.vers, err = this.versions(dirs)
 	if err != nil {
 		return err
 	}
 
-	this.base = base
-	this.vers = vers
+	if lastVer := this.lastVersion(); lastVer != nil {
+		return lastVer.resolve()
+	}
 
 	return nil
 }

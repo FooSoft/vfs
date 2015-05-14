@@ -78,10 +78,6 @@ func newVersion(base string, parent *version) (*version, error) {
 		return nil, err
 	}
 
-	if err := ver.scanFs(); err != nil {
-		return nil, err
-	}
-
 	return ver, nil
 }
 
@@ -98,13 +94,15 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 	ownNodes := make(map[string]versionedNode)
 	{
 		nodes, err := ioutil.ReadDir(this.rebasePath(path))
-		if err != nil {
-			return nil, err
-		}
+		if !os.IsNotExist(err) {
+			if err != nil {
+				return nil, err
+			}
 
-		for _, node := range nodes {
-			name := node.Name()
-			ownNodes[name] = versionedNode{this.rebasePath(path, name), node}
+			for _, node := range nodes {
+				name := node.Name()
+				ownNodes[name] = versionedNode{this.rebasePath(path, name), node}
+			}
 		}
 	}
 
@@ -128,8 +126,7 @@ func (this *version) buildDir(path string, dir *versionedDir) error {
 	for name, node := range nodes {
 		if node.info.IsDir() {
 			subDir := newVersionedDir(node, this.allocInode())
-			subDirPath := filepath.Join(path, name)
-			if err := this.buildDir(subDirPath, subDir); err != nil {
+			if err := this.buildDir(filepath.Join(path, name), subDir); err != nil {
 				return err
 			}
 
@@ -142,7 +139,7 @@ func (this *version) buildDir(path string, dir *versionedDir) error {
 	return nil
 }
 
-func (this *version) scanFs() error {
+func (this *version) resolve() error {
 	node, err := os.Stat(this.rebasePath("/"))
 	if err != nil {
 		return err
@@ -202,11 +199,11 @@ func (this *version) Root() (fs.Node, error) {
 func (this *version) dump(root *versionedDir, depth int) {
 	indent := strings.Repeat("\t", depth)
 	for name, dir := range root.dirs {
-		fmt.Printf("+ %s%s (%s) >\n", indent, name, dir.node.path)
+		fmt.Printf("%s+ %s (%s)\n", indent, name, dir.node.path)
 		this.dump(dir, depth+1)
 	}
 	for name, file := range root.files {
-		fmt.Printf("- %s%s (%s)\n", indent, name, file.node.path)
+		fmt.Printf("%s- %s (%s)\n", indent, name, file.node.path)
 	}
 }
 
