@@ -32,5 +32,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	db.save()
+	db.lastVersion().dumpRoot()
 }

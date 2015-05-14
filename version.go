@@ -31,6 +31,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -53,7 +54,7 @@ type version struct {
 }
 
 func newVersion(base string, parent *version) (*version, error) {
-	re, err := regexp.Compile(`/vfs_([0-9a-f])$`)
+	re, err := regexp.Compile(`^vfs_([0-9a-f])$`)
 	if err != nil {
 		return nil, err
 	}
@@ -201,4 +202,19 @@ func (this *version) allocInode() uint64 {
 
 func (this *version) Root() (fs.Node, error) {
 	return this.root, nil
+}
+
+func (this *version) dump(root *versionedDir, depth int) {
+	indent := strings.Repeat("\t", depth)
+	for name, dir := range root.dirs {
+		fmt.Printf("%s%s (%s) >\n", indent, name, dir.node.path)
+		this.dump(dir, depth+1)
+	}
+	for name, file := range root.files {
+		fmt.Printf("%s%s (%s)\n", indent, name, file.node.path)
+	}
+}
+
+func (this *version) dumpRoot() {
+	this.dump(this.root, 0)
 }
