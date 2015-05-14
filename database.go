@@ -102,7 +102,7 @@ func (this *database) scan(dir string) ([]string, error) {
 	var dirs []string
 	for _, node := range nodes {
 		if node.IsDir() {
-			dirs = append(dirs, node.Name())
+			dirs = append(dirs, filepath.Join(dir, node.Name()))
 		}
 	}
 

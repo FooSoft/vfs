@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -54,7 +55,7 @@ type version struct {
 }
 
 func newVersion(base string, parent *version) (*version, error) {
-	re, err := regexp.Compile(`^vfs_([0-9a-f])$`)
+	re, err := regexp.Compile(`/vfs_([0-9a-f])$`)
 	if err != nil {
 		return nil, err
 	}
@@ -86,8 +87,9 @@ func newVersion(base string, parent *version) (*version, error) {
 }
 
 func (this *version) scanDir(path string) (map[string]versionedNode, error) {
-	var baseNodes map[string]versionedNode
+	log.Printf("scanDir %s for %p", path, this)
 
+	var baseNodes map[string]versionedNode
 	if this.parent != nil {
 		var err error
 		baseNodes = make(map[string]versionedNode)
@@ -100,15 +102,14 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 
 	ownNodes := make(map[string]versionedNode)
 	{
-		fullPath := filepath.Join(this.rootPath(), path)
-		nodes, err := ioutil.ReadDir(fullPath)
+		nodes, err := ioutil.ReadDir(path)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, node := range nodes {
 			name := node.Name()
-			subPath := filepath.Join(fullPath, name)
+			subPath := filepath.Join(path, name)
 			ownNodes[name] = versionedNode{subPath, node}
 		}
 	}
@@ -125,6 +126,8 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 }
 
 func (this *version) buildDir(path string, dir *versionedDir) error {
+	log.Printf("buildDir %s for %p", path, this)
+
 	nodes, err := this.scanDir(path)
 	if err != nil {
 		return err
@@ -148,19 +151,23 @@ func (this *version) buildDir(path string, dir *versionedDir) error {
 }
 
 func (this *version) scanFs() error {
+	log.Printf("scanFs for %p", this)
+
 	node, err := os.Stat(this.rootPath())
 	if err != nil {
 		return err
 	}
 
 	this.root = newVersionedDir(
-		versionedNode{path: this.rootPath(), info: node},
+		versionedNode{this.rootPath(), node},
 		this.allocInode())
 
 	return this.buildDir(this.rootPath(), this.root)
 }
 
 func (this *version) loadMetadata() error {
+	log.Printf("loadMetadata %s for %p", this.metadataPath(), this)
+
 	path := this.metadataPath()
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return nil
@@ -192,7 +199,7 @@ func (this *version) metadataPath() string {
 }
 
 func (this *version) rootPath() string {
-	return this.root.node.path
+	return filepath.Join(this.base, "root")
 }
 
 func (this *version) allocInode() uint64 {
@@ -207,11 +214,11 @@ func (this *version) Root() (fs.Node, error) {
 func (this *version) dump(root *versionedDir, depth int) {
 	indent := strings.Repeat("\t", depth)
 	for name, dir := range root.dirs {
-		fmt.Printf("%s%s (%s) >\n", indent, name, dir.node.path)
+		fmt.Printf("+ %s%s (%s) >\n", indent, name, dir.node.path)
 		this.dump(dir, depth+1)
 	}
 	for name, file := range root.files {
-		fmt.Printf("%s%s (%s)\n", indent, name, file.node.path)
+		fmt.Printf("- %s%s (%s)\n", indent, name, file.node.path)
 	}
 }
 
