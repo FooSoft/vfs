@@ -23,11 +23,9 @@
 package main
 
 import (
-	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/net/context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -43,61 +41,6 @@ type versionMetadata struct {
 type versionedNode struct {
 	path string
 	info os.FileInfo
-}
-
-type versionedFile struct {
-	node  versionedNode
-	inode uint64
-}
-
-func (this versionedFile) Attr(attr *fuse.Attr) {
-	attr.Mode = this.node.info.Mode()
-	attr.Inode = this.inode
-	attr.Size = uint64(this.node.info.Size())
-}
-
-func (versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
-	return nil, nil
-}
-
-type versionedDir struct {
-	dirs  map[string]versionedDir
-	files map[string]versionedFile
-	node  versionedNode
-	inode uint64
-}
-
-func (this versionedDir) Attr(attr *fuse.Attr) {
-	attr.Mode = this.node.info.Mode()
-	attr.Inode = this.inode
-}
-
-func (this versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
-	var entries []fuse.Dirent
-
-	for name, dir := range this.dirs {
-		entry := fuse.Dirent{Inode: dir.inode, Name: name, Type: fuse.DT_File}
-		entries = append(entries, entry)
-	}
-
-	for name, file := range this.files {
-		entry := fuse.Dirent{Inode: file.inode, Name: name, Type: fuse.DT_Dir}
-		entries = append(entries, entry)
-	}
-
-	return nil, nil
-}
-
-func (this versionedDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	if dir, ok := this.dirs[name]; ok {
-		return dir, nil
-	}
-
-	if file, ok := this.files[name]; ok {
-		return file, nil
-	}
-
-	return nil, fuse.ENOENT
 }
 
 type version struct {
