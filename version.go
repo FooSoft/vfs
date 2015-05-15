@@ -24,7 +24,6 @@ package main
 
 import (
 	"bazil.org/fuse/fs"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -35,19 +34,6 @@ import (
 	"time"
 )
 
-type versionMetadata struct {
-	Deleted []string `json:"deleted"`
-}
-
-func (this *versionMetadata) filter(base string, nodes map[string]versionedNode) {
-	for _, delPath := range this.Deleted {
-		dir, file := filepath.Split(delPath)
-		if dir == base {
-			delete(nodes, file)
-		}
-	}
-}
-
 type versionedNode struct {
 	path string
 	info os.FileInfo
@@ -57,7 +43,7 @@ type version struct {
 	base      string
 	parent    *version
 	timestamp time.Time
-	meta      versionMetadata
+	meta      *versionMetadata
 	root      *versionedDir
 	inodeCnt  uint64
 }
@@ -83,7 +69,8 @@ func newVersion(base string, parent *version) (*version, error) {
 		parent:    parent,
 		timestamp: time.Unix(timeval, 0)}
 
-	if err := ver.loadMetadata(); err != nil {
+	ver.meta, err = newVersionMetadata(ver.metadataPath())
+	if err != nil {
 		return nil, err
 	}
 
@@ -164,32 +151,6 @@ func (this *version) resolve() error {
 		this.allocInode())
 
 	return this.buildDir("/", this.root)
-}
-
-func (this *version) loadMetadata() error {
-	if _, err := os.Stat(this.metadataPath()); os.IsNotExist(err) {
-		return nil
-	}
-
-	bytes, err := ioutil.ReadFile(this.metadataPath())
-	if err != nil {
-		return err
-	}
-
-	if err := json.Unmarshal(bytes, &this.meta); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (this *version) saveMetadata() error {
-	js, err := json.Marshal(this.meta)
-	if err != nil {
-		return err
-	}
-
-	return ioutil.WriteFile(this.metadataPath(), js, 0644)
 }
 
 func (this *version) metadataPath() string {
