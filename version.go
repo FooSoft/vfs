@@ -36,7 +36,16 @@ import (
 )
 
 type versionMetadata struct {
-	Deleted []string
+	Deleted []string `json:"deleted"`
+}
+
+func (this *versionMetadata) filter(base string, nodes map[string]versionedNode) {
+	for _, delPath := range this.Deleted {
+		dir, file := filepath.Split(delPath)
+		if dir == base {
+			delete(nodes, file)
+		}
+	}
 }
 
 type versionedNode struct {
@@ -85,10 +94,13 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 	var baseNodes map[string]versionedNode
 	if this.parent != nil {
 		var err error
+
 		baseNodes, err = this.parent.scanDir(path)
 		if err != nil {
 			return nil, err
 		}
+
+		this.meta.filter(path, baseNodes)
 	}
 
 	ownNodes := make(map[string]versionedNode)
@@ -104,6 +116,8 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 				ownNodes[name] = versionedNode{this.rebasePath(path, name), node}
 			}
 		}
+
+		this.meta.filter(path, ownNodes)
 	}
 
 	if baseNodes == nil {
