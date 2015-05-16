@@ -43,7 +43,7 @@ func newVersionMetadata(path string) (*versionMetadata, error) {
 	return meta, nil
 }
 
-func (this *versionMetadata) filter(nodes map[string]versionedNode) {
+func (this *versionMetadata) filter(nodes versionedNodeMap) {
 	for _, delPath := range this.Deleted {
 		for name, node := range nodes {
 			if strings.HasPrefix(node.path, delPath) {

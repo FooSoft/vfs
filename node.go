@@ -22,56 +22,16 @@
 
 package main
 
-import (
-	"bazil.org/fuse"
-	"bazil.org/fuse/fs"
-	"golang.org/x/net/context"
-)
+import "os"
 
-type versionedDir struct {
-	dirs  map[string]*versionedDir
-	files map[string]*versionedFile
-	node  *versionedNode
-	inode uint64
+type versionedNode struct {
+	path string
+	info os.FileInfo
+	ver  *version
 }
 
-func newVersionedDir(node *versionedNode, inode uint64) *versionedDir {
-	return &versionedDir{
-		dirs:  make(map[string]*versionedDir),
-		files: make(map[string]*versionedFile),
-		node:  node,
-		inode: inode}
-}
+type versionedNodeMap map[string]*versionedNode
 
-func (this versionedDir) Attr(attr *fuse.Attr) {
-	attr.Mode = this.node.info.Mode()
-	attr.Inode = this.inode
-}
-
-func (this versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
-	var entries []fuse.Dirent
-
-	for name, dir := range this.dirs {
-		entry := fuse.Dirent{Inode: dir.inode, Name: name, Type: fuse.DT_File}
-		entries = append(entries, entry)
-	}
-
-	for name, file := range this.files {
-		entry := fuse.Dirent{Inode: file.inode, Name: name, Type: fuse.DT_Dir}
-		entries = append(entries, entry)
-	}
-
-	return nil, nil
-}
-
-func (this versionedDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	if dir, ok := this.dirs[name]; ok {
-		return dir, nil
-	}
-
-	if file, ok := this.files[name]; ok {
-		return file, nil
-	}
-
-	return nil, fuse.ENOENT
+func (this *versionedNode) rebasedPath() string {
+	return this.ver.rebasePath(this.path)
 }

@@ -34,16 +34,6 @@ import (
 	"time"
 )
 
-type versionedNode struct {
-	path string
-	info os.FileInfo
-	ver  *version
-}
-
-func (this *versionedNode) rebasedPath() string {
-	return this.ver.rebasePath(this.path)
-}
-
 type version struct {
 	base      string
 	parent    *version
@@ -82,8 +72,12 @@ func newVersion(base string, parent *version) (*version, error) {
 	return ver, nil
 }
 
-func (this *version) scanDir(path string) (map[string]versionedNode, error) {
-	var baseNodes map[string]versionedNode
+func (this *version) newVersionedNode(path string, info os.FileInfo) *versionedNode {
+	return &versionedNode{path, info, this}
+}
+
+func (this *version) scanDir(path string) (versionedNodeMap, error) {
+	var baseNodes versionedNodeMap
 	if this.parent != nil {
 		var err error
 
@@ -95,7 +89,7 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 		this.meta.filter(baseNodes)
 	}
 
-	ownNodes := make(map[string]versionedNode)
+	ownNodes := make(versionedNodeMap)
 	{
 		nodes, err := ioutil.ReadDir(this.rebasePath(path))
 		if !os.IsNotExist(err) {
@@ -104,8 +98,7 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 			}
 
 			for _, node := range nodes {
-				name := node.Name()
-				ownNodes[name] = versionedNode{filepath.Join(path, name), node, this}
+				ownNodes[node.Name()] = this.newVersionedNode(filepath.Join(path, node.Name()), node)
 			}
 		}
 
@@ -152,7 +145,7 @@ func (this *version) resolve() error {
 	}
 
 	this.root = newVersionedDir(
-		versionedNode{"/", node, this},
+		this.newVersionedNode("/", node),
 		this.allocInode())
 
 	return this.buildVerDir(this.root)

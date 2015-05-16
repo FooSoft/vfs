@@ -28,11 +28,11 @@ import (
 )
 
 type versionedFile struct {
-	node  versionedNode
+	node  *versionedNode
 	inode uint64
 }
 
-func newVersionedFile(node versionedNode, inode uint64) *versionedFile {
+func newVersionedFile(node *versionedNode, inode uint64) *versionedFile {
 	return &versionedFile{node: node, inode: inode}
 }
 
