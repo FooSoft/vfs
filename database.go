@@ -28,8 +28,9 @@ import (
 )
 
 type database struct {
-	base string
-	vers []*version
+	base     string
+	vers     []*version
+	inodeCnt uint64
 }
 
 func newDatabase(dir string) (*database, error) {
@@ -75,7 +76,7 @@ func (this *database) versions(dirs []string) ([]*version, error) {
 
 	var parent *version
 	for _, dir := range dirs {
-		ver, err := newVersion(dir, parent)
+		ver, err := newVersion(dir, this, parent)
 		if err != nil {
 			return nil, err
 		}
@@ -110,4 +111,9 @@ func (this *database) scan(dir string) ([]string, error) {
 	}
 
 	return dirs, nil
+}
+
+func (this *database) AllocInode() uint64 {
+	this.inodeCnt++
+	return this.inodeCnt
 }

@@ -40,10 +40,14 @@ type version struct {
 	timestamp time.Time
 	meta      *versionMetadata
 	root      *versionedDir
-	inodeCnt  uint64
+	inodeAloc InodeAllocator
 }
 
-func newVersion(base string, parent *version) (*version, error) {
+type InodeAllocator interface {
+	AllocInode() uint64
+}
+
+func newVersion(base string, allocator InodeAllocator, parent *version) (*version, error) {
 	re, err := regexp.Compile(`/vfs_([0-9a-f])$`)
 	if err != nil {
 		return nil, err
@@ -62,7 +66,8 @@ func newVersion(base string, parent *version) (*version, error) {
 	ver := &version{
 		base:      base,
 		parent:    parent,
-		timestamp: time.Unix(timeval, 0)}
+		timestamp: time.Unix(timeval, 0),
+		inodeAloc: allocator}
 
 	ver.meta, err = newVersionMetadata(ver.metadataPath())
 	if err != nil {
@@ -124,14 +129,14 @@ func (this *version) buildVerDir(dir *versionedDir) error {
 
 	for name, node := range nodes {
 		if node.info.IsDir() {
-			subDir := newVersionedDir(node, this.allocInode())
+			subDir := newVersionedDir(node, this.inodeAloc.AllocInode())
 			if err := this.buildVerDir(subDir); err != nil {
 				return err
 			}
 
 			dir.dirs[name] = subDir
 		} else {
-			dir.files[name] = newVersionedFile(node, this.allocInode())
+			dir.files[name] = newVersionedFile(node, this.inodeAloc.AllocInode())
 		}
 	}
 
@@ -146,7 +151,7 @@ func (this *version) resolve() error {
 
 	this.root = newVersionedDir(
 		this.newVersionedNode("/", node),
-		this.allocInode())
+		this.inodeAloc.AllocInode())
 
 	return this.buildVerDir(this.root)
 }
@@ -158,11 +163,6 @@ func (this *version) metadataPath() string {
 func (this *version) rebasePath(paths ...string) string {
 	combined := append([]string{this.base, "root"}, paths...)
 	return filepath.Join(combined...)
-}
-
-func (this *version) allocInode() uint64 {
-	this.inodeCnt++
-	return this.inodeCnt
 }
 
 func (this *version) Root() (fs.Node, error) {
