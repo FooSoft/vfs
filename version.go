@@ -123,8 +123,8 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 	return baseNodes, nil
 }
 
-func (this *version) buildVerDir(path string, dir *versionedDir) error {
-	nodes, err := this.scanDir(path)
+func (this *version) buildVerDir(dir *versionedDir) error {
+	nodes, err := this.scanDir(dir.node.path)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (this *version) buildVerDir(path string, dir *versionedDir) error {
 	for name, node := range nodes {
 		if node.info.IsDir() {
 			subDir := newVersionedDir(node, this.allocInode())
-			if err := this.buildVerDir(filepath.Join(path, name), subDir); err != nil {
+			if err := this.buildVerDir(subDir); err != nil {
 				return err
 			}
 
@@ -155,7 +155,7 @@ func (this *version) resolve() error {
 		versionedNode{"/", node, this},
 		this.allocInode())
 
-	return this.buildVerDir("/", this.root)
+	return this.buildVerDir(this.root)
 }
 
 func (this *version) metadataPath() string {
