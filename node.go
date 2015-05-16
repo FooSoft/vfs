@@ -23,8 +23,11 @@
 package main
 
 import (
+	"bazil.org/fuse"
 	"fmt"
 	"os"
+	"syscall"
+	"time"
 )
 
 type versionedNode struct {
@@ -37,6 +40,21 @@ type versionedNodeMap map[string]*versionedNode
 
 func (this *versionedNode) rebasedPath() string {
 	return this.ver.rebasePath(this.path)
+}
+
+func (this *versionedNode) attr(attr *fuse.Attr) {
+	stat := this.info.Sys().(*syscall.Stat_t)
+
+	attr.Size = uint64(this.info.Size())
+	attr.Blocks = uint64(stat.Blocks)
+	attr.Atime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
+	attr.Mtime = this.info.ModTime()
+	attr.Ctime = time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
+	attr.Mode = this.info.Mode()
+	attr.Nlink = uint32(stat.Nlink)
+	attr.Uid = stat.Uid
+	attr.Gid = stat.Gid
+	attr.Rdev = uint32(stat.Rdev)
 }
 
 func (this *versionedNode) String() string {

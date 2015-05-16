@@ -41,9 +41,8 @@ func newVersionedFile(node *versionedNode, inode uint64) *versionedFile {
 func (this versionedFile) Attr(attr *fuse.Attr) {
 	log.Printf("versionedFile::Attr: %s", this.node)
 
-	attr.Mode = this.node.info.Mode()
+	this.node.attr(attr)
 	attr.Inode = this.inode
-	attr.Size = uint64(this.node.info.Size())
 }
 
 func (this versionedFile) ReadAll(ctx context.Context) ([]byte, error) {

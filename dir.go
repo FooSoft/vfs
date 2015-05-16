@@ -47,7 +47,7 @@ func newVersionedDir(node *versionedNode, inode uint64) *versionedDir {
 func (this versionedDir) Attr(attr *fuse.Attr) {
 	log.Printf("versionedDir::Attr: %s", this.node)
 
-	attr.Mode = this.node.info.Mode()
+	this.node.attr(attr)
 	attr.Inode = this.inode
 }
 
