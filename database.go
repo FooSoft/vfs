@@ -23,6 +23,7 @@
 package main
 
 import (
+	"bazil.org/fuse/fs"
 	"io/ioutil"
 	"path/filepath"
 )
@@ -111,6 +112,10 @@ func (this *database) scan(dir string) ([]string, error) {
 	}
 
 	return dirs, nil
+}
+
+func (this *database) Root() (fs.Node, error) {
+	return this.lastVersion().root, nil
 }
 
 func (this *database) AllocInode() uint64 {

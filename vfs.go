@@ -23,6 +23,8 @@
 package main
 
 import (
+	"bazil.org/fuse"
+	"bazil.org/fuse/fs"
 	"log"
 )
 
@@ -32,5 +34,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	db.lastVersion().dumpRoot()
+	c, err := fuse.Mount(
+		"mp",
+		fuse.FSName("helloworld"),
+		fuse.Subtype("hellofs"),
+		fuse.LocalVolume(),
+		fuse.VolumeName("Hello world!"),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer c.Close()
+
+	err = fs.Serve(c, db)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	<-c.Ready
+	if err := c.MountError; err != nil {
+		log.Fatal(err)
+	}
 }

@@ -25,6 +25,7 @@ package main
 import (
 	"bazil.org/fuse"
 	"golang.org/x/net/context"
+	"io/ioutil"
 )
 
 type versionedFile struct {
@@ -42,6 +43,11 @@ func (this versionedFile) Attr(attr *fuse.Attr) {
 	attr.Size = uint64(this.node.info.Size())
 }
 
-func (versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
-	return nil, nil
+func (this versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
+	bytes, err := ioutil.ReadFile(this.node.rebasedPath())
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes, nil
 }
