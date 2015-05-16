@@ -22,7 +22,10 @@
 
 package main
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 type versionedNode struct {
 	path string
@@ -34,4 +37,8 @@ type versionedNodeMap map[string]*versionedNode
 
 func (this *versionedNode) rebasedPath() string {
 	return this.ver.rebasePath(this.path)
+}
+
+func (this *versionedNode) String() string {
+	return fmt.Sprintf("%s (%s)", this.path, this.rebasedPath())
 }

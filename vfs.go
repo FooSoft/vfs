@@ -36,10 +36,10 @@ func main() {
 
 	c, err := fuse.Mount(
 		"mp",
-		fuse.FSName("helloworld"),
-		fuse.Subtype("hellofs"),
+		fuse.FSName("vfs"),
+		fuse.Subtype("vfs"),
 		fuse.LocalVolume(),
-		fuse.VolumeName("Hello world!"),
+		fuse.VolumeName("vfs"),
 	)
 	if err != nil {
 		log.Fatal(err)

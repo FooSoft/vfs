@@ -26,6 +26,7 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"golang.org/x/net/context"
+	"log"
 )
 
 type versionedDir struct {
@@ -44,27 +45,31 @@ func newVersionedDir(node *versionedNode, inode uint64) *versionedDir {
 }
 
 func (this versionedDir) Attr(attr *fuse.Attr) {
+	log.Printf("versionedDir::Attr: %s", this.node)
+
 	attr.Mode = this.node.info.Mode()
 	attr.Inode = this.inode
 }
 
 func (this versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
-	var entries []fuse.Dirent
+	log.Printf("versionedDir::ReadDirAll: %s", this.node)
 
+	var entries []fuse.Dirent
 	for name, dir := range this.dirs {
 		entry := fuse.Dirent{Inode: dir.inode, Name: name, Type: fuse.DT_File}
 		entries = append(entries, entry)
 	}
-
 	for name, file := range this.files {
 		entry := fuse.Dirent{Inode: file.inode, Name: name, Type: fuse.DT_Dir}
 		entries = append(entries, entry)
 	}
 
-	return nil, nil
+	return entries, nil
 }
 
 func (this versionedDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	log.Printf("versionedDir::Lookup: %s", this.node)
+
 	if dir, ok := this.dirs[name]; ok {
 		return dir, nil
 	}
