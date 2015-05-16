@@ -37,6 +37,11 @@ import (
 type versionedNode struct {
 	path string
 	info os.FileInfo
+	ver  *version
+}
+
+func (this *versionedNode) rebasedPath() string {
+	return this.ver.rebasePath(this.path)
 }
 
 type version struct {
@@ -87,7 +92,7 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 			return nil, err
 		}
 
-		this.meta.filter(path, baseNodes)
+		this.meta.filter(baseNodes)
 	}
 
 	ownNodes := make(map[string]versionedNode)
@@ -100,11 +105,11 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 
 			for _, node := range nodes {
 				name := node.Name()
-				ownNodes[name] = versionedNode{this.rebasePath(path, name), node}
+				ownNodes[name] = versionedNode{filepath.Join(path, name), node, this}
 			}
 		}
 
-		this.meta.filter(path, ownNodes)
+		this.meta.filter(ownNodes)
 	}
 
 	if baseNodes == nil {
@@ -118,7 +123,7 @@ func (this *version) scanDir(path string) (map[string]versionedNode, error) {
 	return baseNodes, nil
 }
 
-func (this *version) buildDir(path string, dir *versionedDir) error {
+func (this *version) buildVerDir(path string, dir *versionedDir) error {
 	nodes, err := this.scanDir(path)
 	if err != nil {
 		return err
@@ -127,7 +132,7 @@ func (this *version) buildDir(path string, dir *versionedDir) error {
 	for name, node := range nodes {
 		if node.info.IsDir() {
 			subDir := newVersionedDir(node, this.allocInode())
-			if err := this.buildDir(filepath.Join(path, name), subDir); err != nil {
+			if err := this.buildVerDir(filepath.Join(path, name), subDir); err != nil {
 				return err
 			}
 
@@ -147,10 +152,10 @@ func (this *version) resolve() error {
 	}
 
 	this.root = newVersionedDir(
-		versionedNode{"/", node},
+		versionedNode{"/", node, this},
 		this.allocInode())
 
-	return this.buildDir("/", this.root)
+	return this.buildVerDir("/", this.root)
 }
 
 func (this *version) metadataPath() string {
@@ -174,11 +179,11 @@ func (this *version) Root() (fs.Node, error) {
 func (this *version) dump(root *versionedDir, depth int) {
 	indent := strings.Repeat("\t", depth)
 	for name, dir := range root.dirs {
-		fmt.Printf("%s+ %s (%s)\n", indent, name, dir.node.path)
+		fmt.Printf("%s+ %s [%s@%d]\n", indent, name, dir.node.path, dir.node.ver.timestamp.Unix())
 		this.dump(dir, depth+1)
 	}
 	for name, file := range root.files {
-		fmt.Printf("%s- %s (%s)\n", indent, name, file.node.path)
+		fmt.Printf("%s- %s [%s@%d]\n", indent, name, file.node.path, file.node.ver.timestamp.Unix())
 	}
 }
 

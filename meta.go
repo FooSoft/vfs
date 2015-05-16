@@ -26,7 +26,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-	"path/filepath"
+	"strings"
 )
 
 type versionMetadata struct {
@@ -43,11 +43,12 @@ func newVersionMetadata(path string) (*versionMetadata, error) {
 	return meta, nil
 }
 
-func (this *versionMetadata) filter(base string, nodes map[string]versionedNode) {
+func (this *versionMetadata) filter(nodes map[string]versionedNode) {
 	for _, delPath := range this.Deleted {
-		dir, file := filepath.Split(delPath)
-		if dir == base {
-			delete(nodes, file)
+		for name, node := range nodes {
+			if strings.HasPrefix(node.path, delPath) {
+				delete(nodes, name)
+			}
 		}
 	}
 }
