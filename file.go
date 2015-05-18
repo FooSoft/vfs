@@ -26,7 +26,6 @@ import (
 	"bazil.org/fuse"
 	"golang.org/x/net/context"
 	"io/ioutil"
-	"log"
 )
 
 type versionedFile struct {
@@ -43,15 +42,11 @@ func newVersionedFile(node *versionedNode, inode uint64, parent *versionedDir) *
 }
 
 func (this versionedFile) Attr(attr *fuse.Attr) {
-	log.Printf("versionedFile::Attr: %s", this.node)
-
 	this.node.attr(attr)
 	attr.Inode = this.inode
 }
 
 func (this versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
-	log.Printf("versionedFile::ReadAll: %s", this.node)
-
 	bytes, err := ioutil.ReadFile(this.node.rebasedPath())
 	if err != nil {
 		return nil, err
