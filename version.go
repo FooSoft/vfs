@@ -129,14 +129,14 @@ func (this *version) buildVerDir(dir *versionedDir) error {
 
 	for name, node := range nodes {
 		if node.info.IsDir() {
-			subDir := newVersionedDir(node, this.inodeAloc.AllocInode())
+			subDir := newVersionedDir(node, this.inodeAloc.AllocInode(), dir)
 			if err := this.buildVerDir(subDir); err != nil {
 				return err
 			}
 
 			dir.dirs[name] = subDir
 		} else {
-			dir.files[name] = newVersionedFile(node, this.inodeAloc.AllocInode())
+			dir.files[name] = newVersionedFile(node, this.inodeAloc.AllocInode(), dir)
 		}
 	}
 
@@ -151,7 +151,8 @@ func (this *version) resolve() error {
 
 	this.root = newVersionedDir(
 		this.newVersionedNode("/", node),
-		this.inodeAloc.AllocInode())
+		this.inodeAloc.AllocInode(),
+		nil)
 
 	return this.buildVerDir(this.root)
 }

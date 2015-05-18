@@ -30,18 +30,20 @@ import (
 )
 
 type versionedDir struct {
-	dirs  map[string]*versionedDir
-	files map[string]*versionedFile
-	node  *versionedNode
-	inode uint64
+	dirs   map[string]*versionedDir
+	files  map[string]*versionedFile
+	node   *versionedNode
+	inode  uint64
+	parent *versionedDir
 }
 
-func newVersionedDir(node *versionedNode, inode uint64) *versionedDir {
+func newVersionedDir(node *versionedNode, inode uint64, parent *versionedDir) *versionedDir {
 	return &versionedDir{
-		dirs:  make(map[string]*versionedDir),
-		files: make(map[string]*versionedFile),
-		node:  node,
-		inode: inode}
+		dirs:   make(map[string]*versionedDir),
+		files:  make(map[string]*versionedFile),
+		node:   node,
+		inode:  inode,
+		parent: parent}
 }
 
 func (this versionedDir) Attr(attr *fuse.Attr) {
@@ -54,11 +56,17 @@ func (this versionedDir) Attr(attr *fuse.Attr) {
 func (this versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	log.Printf("versionedDir::ReadDirAll: %s", this.node)
 
-	var entries []fuse.Dirent
+	entries := []fuse.Dirent{{Inode: this.inode, Name: ".", Type: fuse.DT_Dir}}
+	if this.parent != nil {
+		entry := fuse.Dirent{Inode: this.parent.inode, Name: "..", Type: fuse.DT_Dir}
+		entries = append(entries, entry)
+	}
+
 	for name, dir := range this.dirs {
 		entry := fuse.Dirent{Inode: dir.inode, Name: name, Type: fuse.DT_File}
 		entries = append(entries, entry)
 	}
+
 	for name, file := range this.files {
 		entry := fuse.Dirent{Inode: file.inode, Name: name, Type: fuse.DT_Dir}
 		entries = append(entries, entry)

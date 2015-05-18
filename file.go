@@ -30,12 +30,16 @@ import (
 )
 
 type versionedFile struct {
-	node  *versionedNode
-	inode uint64
+	node   *versionedNode
+	inode  uint64
+	parent *versionedDir
 }
 
-func newVersionedFile(node *versionedNode, inode uint64) *versionedFile {
-	return &versionedFile{node: node, inode: inode}
+func newVersionedFile(node *versionedNode, inode uint64, parent *versionedDir) *versionedFile {
+	return &versionedFile{
+		node:   node,
+		inode:  inode,
+		parent: parent}
 }
 
 func (this versionedFile) Attr(attr *fuse.Attr) {
