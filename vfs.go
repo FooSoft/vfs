@@ -34,13 +34,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	c, err := fuse.Mount(
-		"mp",
-		fuse.FSName("vfs"),
-		fuse.Subtype("vfs"),
-		fuse.LocalVolume(),
-		fuse.VolumeName("vfs"),
-	)
+	c, err := fuse.Mount("mp")
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -63,12 +63,12 @@ func (this versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) 
 	}
 
 	for name, dir := range this.dirs {
-		entry := fuse.Dirent{Inode: dir.inode, Name: name, Type: fuse.DT_File}
+		entry := fuse.Dirent{Inode: dir.inode, Name: name, Type: fuse.DT_Dir}
 		entries = append(entries, entry)
 	}
 
 	for name, file := range this.files {
-		entry := fuse.Dirent{Inode: file.inode, Name: name, Type: fuse.DT_Dir}
+		entry := fuse.Dirent{Inode: file.inode, Name: name, Type: fuse.DT_File}
 		entries = append(entries, entry)
 	}
 
