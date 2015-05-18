@@ -25,28 +25,49 @@ package main
 import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	_ "bazil.org/fuse/fs/fstestutil"
+	"flag"
+	"fmt"
 	"log"
+	"os"
 )
 
+func usage() {
+	fmt.Fprintf(os.Stderr, "Usage: %s [options] database mountpoint\n\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Parameters:\n")
+	flag.PrintDefaults()
+}
+
 func main() {
-	db, err := newDatabase("fs")
+	flag.Usage = usage
+	flag.Parse()
+
+	if flag.NArg() != 2 {
+		usage()
+		os.Exit(2)
+	}
+
+	database := flag.Arg(0)
+	mountpoint := flag.Arg(1)
+
+	db, err := newDatabase(database)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	c, err := fuse.Mount("mp")
+	conn, err := fuse.Mount(mountpoint)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer c.Close()
+	defer conn.Close()
 
-	err = fs.Serve(c, db)
+	err = fs.Serve(conn, db)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	<-c.Ready
-	if err := c.MountError; err != nil {
+	<-conn.Ready
+	if err := conn.MountError; err != nil {
 		log.Fatal(err)
 	}
 }
