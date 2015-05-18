@@ -26,6 +26,7 @@ import (
 	"bazil.org/fuse/fs"
 	"io/ioutil"
 	"path/filepath"
+	"sync/atomic"
 )
 
 type database struct {
@@ -119,6 +120,5 @@ func (this *database) Root() (fs.Node, error) {
 }
 
 func (this *database) AllocInode() uint64 {
-	this.inodeCnt++
-	return this.inodeCnt
+	return atomic.AddUint64(&this.inodeCnt, 1)
 }

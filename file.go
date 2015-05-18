@@ -26,6 +26,7 @@ import (
 	"bazil.org/fuse"
 	"golang.org/x/net/context"
 	"io/ioutil"
+	"os"
 )
 
 type versionedFile struct {
@@ -45,6 +46,41 @@ func (this versionedFile) Attr(attr *fuse.Attr) {
 	this.node.attr(attr)
 	attr.Inode = this.inode
 }
+
+func (this versionedFile) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
+	file, err := os.OpenFile(this.node.rebasedPath(), os.O_WRONLY, 0666)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	size, err := file.WriteAt(req.Data, req.Offset)
+	if err != nil {
+		return err
+	}
+
+	resp.Size = size
+	return nil
+}
+
+func (this versionedFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+	info, err := os.Stat(this.node.rebasedPath())
+	if err != nil {
+		return err
+	}
+
+	this.node.info = info
+	this.Attr(&resp.Attr)
+	return nil
+}
+
+func (this versionedFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
+	return nil
+}
+
+// func (this versionedFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+// 	return nil
+// }
 
 func (this versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
 	bytes, err := ioutil.ReadFile(this.node.rebasedPath())
