@@ -38,32 +38,30 @@ type versionedDir struct {
 	parent *versionedDir
 }
 
-func newVersionedDir(node *versionedNode, inode uint64, parent *versionedDir) *versionedDir {
+func newVersionedDir(node *versionedNode, parent *versionedDir) *versionedDir {
 	return &versionedDir{
 		dirs:   make(map[string]*versionedDir),
 		files:  make(map[string]*versionedFile),
 		node:   node,
-		inode:  inode,
+		inode:  node.ver.inodeAloc.AllocInode(),
 		parent: parent}
 }
 
 func (this *versionedDir) createDir(name string) (*versionedDir, error) {
 	childPath := path.Join(this.node.path, name)
-	childPathFull := this.node.ver.rebasePath(childPath)
 
-	if err := os.Mkdir(childPathFull, 0755); err != nil {
+	if err := os.Mkdir(this.node.ver.rebasePath(childPath), 0755); err != nil {
 		return nil, err
 	}
 
-	info, err := os.Stat(childPathFull)
+	node, err := newVersionedNode(childPath, this.node.ver)
 	if err != nil {
 		return nil, err
 	}
 
-	node := &versionedNode{childPath, info, this.node.ver}
-	dir := newVersionedDir(node, this.node.ver.inodeAloc.AllocInode(), this)
-
+	dir := newVersionedDir(node, this)
 	this.dirs[name] = dir
+
 	return dir, nil
 }
 
@@ -83,7 +81,7 @@ func (this *versionedDir) createFile(name string, flags int) (*versionedFile, er
 	}
 
 	node := &versionedNode{childPath, info, this.node.ver}
-	file := newVersionedFile(node, this.node.ver.inodeAloc.AllocInode(), this)
+	file := newVersionedFile(node, this)
 
 	this.files[name] = file
 	return file, nil

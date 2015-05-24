@@ -63,22 +63,19 @@ func newVersion(base string, allocator InodeAllocator, parent *version) (*versio
 		return nil, err
 	}
 
-	ver := &version{
-		base:      base,
-		parent:    parent,
-		timestamp: time.Unix(timeval, 0),
-		inodeAloc: allocator}
-
-	ver.meta, err = newVersionMetadata(ver.metadataPath())
+	meta, err := newVersionMetadata(filepath.Join(base, "meta.json"))
 	if err != nil {
 		return nil, err
 	}
 
-	return ver, nil
-}
+	ver := &version{
+		base:      base,
+		parent:    parent,
+		timestamp: time.Unix(timeval, 0),
+		meta:      meta,
+		inodeAloc: allocator}
 
-func (this *version) newVersionedNode(path string, info os.FileInfo) *versionedNode {
-	return &versionedNode{path, info, this}
+	return ver, nil
 }
 
 func (this *version) scanDir(path string) (versionedNodeMap, error) {
@@ -96,14 +93,16 @@ func (this *version) scanDir(path string) (versionedNodeMap, error) {
 
 	ownNodes := make(versionedNodeMap)
 	{
-		nodes, err := ioutil.ReadDir(this.rebasePath(path))
+		infos, err := ioutil.ReadDir(this.rebasePath(path))
 		if !os.IsNotExist(err) {
 			if err != nil {
 				return nil, err
 			}
 
-			for _, node := range nodes {
-				ownNodes[node.Name()] = this.newVersionedNode(filepath.Join(path, node.Name()), node)
+			for _, info := range infos {
+				childName := info.Name()
+				childPath := filepath.Join(path, childName)
+				ownNodes[childName] = newVersionedNodeStat(childPath, this, info)
 			}
 		}
 
@@ -129,14 +128,14 @@ func (this *version) buildVerDir(dir *versionedDir) error {
 
 	for name, node := range nodes {
 		if node.info.IsDir() {
-			subDir := newVersionedDir(node, this.inodeAloc.AllocInode(), dir)
+			subDir := newVersionedDir(node, dir)
 			if err := this.buildVerDir(subDir); err != nil {
 				return err
 			}
 
 			dir.dirs[name] = subDir
 		} else {
-			dir.files[name] = newVersionedFile(node, this.inodeAloc.AllocInode(), dir)
+			dir.files[name] = newVersionedFile(node, dir)
 		}
 	}
 
@@ -144,17 +143,18 @@ func (this *version) buildVerDir(dir *versionedDir) error {
 }
 
 func (this *version) resolve() error {
-	node, err := os.Stat(this.rebasePath("/"))
+	node, err := newVersionedNode("/", this)
 	if err != nil {
 		return err
 	}
 
-	this.root = newVersionedDir(
-		this.newVersionedNode("/", node),
-		this.inodeAloc.AllocInode(),
-		nil)
+	root := newVersionedDir(node, nil)
+	if err = this.buildVerDir(root); err != nil {
+		return err
+	}
 
-	return this.buildVerDir(this.root)
+	this.root = root
+	return nil
 }
 
 func (this *version) metadataPath() string {
