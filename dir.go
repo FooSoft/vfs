@@ -26,6 +26,8 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"golang.org/x/net/context"
+	"os"
+	"path"
 )
 
 type versionedDir struct {
@@ -45,12 +47,64 @@ func newVersionedDir(node *versionedNode, inode uint64, parent *versionedDir) *v
 		parent: parent}
 }
 
-func (this versionedDir) Attr(attr *fuse.Attr) {
+func (this *versionedDir) createDir(name string) (*versionedDir, error) {
+	childPath := path.Join(this.node.path, name)
+
+	if err := os.Mkdir(childPath, 0755); err != nil {
+		return nil, err
+	}
+
+	info, err := os.Stat(childPath)
+	if err != nil {
+		return nil, err
+	}
+
+	node := &versionedNode{childPath, info, this.node.ver}
+	return newVersionedDir(node, this.node.ver.inodeAloc.AllocInode(), this), nil
+}
+
+func (this *versionedDir) createFile(name string, flags int) (*versionedFile, error) {
+	childPath := path.Join(this.node.path, name)
+
+	file, err := os.OpenFile(name, flags, 0644)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	info, err := os.Stat(childPath)
+	if err != nil {
+		return nil, err
+	}
+
+	node := &versionedNode{childPath, info, this.node.ver}
+	return newVersionedFile(node, this.node.ver.inodeAloc.AllocInode(), this), nil
+}
+
+func (this *versionedDir) Attr(attr *fuse.Attr) {
 	this.node.attr(attr)
 	attr.Inode = this.inode
 }
 
-func (this versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+func (this *versionedDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
+	if req.Mode.IsDir() {
+		dir, err := this.createDir(req.Name)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return dir, dir, nil
+	} else {
+		file, err := this.createFile(req.Name, int(req.Flags))
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return file, file, nil
+	}
+}
+
+func (this *versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	entries := []fuse.Dirent{{Inode: this.inode, Name: ".", Type: fuse.DT_Dir}}
 	if this.parent != nil {
 		entry := fuse.Dirent{Inode: this.parent.inode, Name: "..", Type: fuse.DT_Dir}
@@ -70,7 +124,7 @@ func (this versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) 
 	return entries, nil
 }
 
-func (this versionedDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+func (this *versionedDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	if dir, ok := this.dirs[name]; ok {
 		return dir, nil
 	}

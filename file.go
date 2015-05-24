@@ -26,7 +26,6 @@ import (
 	"bazil.org/fuse"
 	"golang.org/x/net/context"
 	"io/ioutil"
-	"log"
 	"os"
 )
 
