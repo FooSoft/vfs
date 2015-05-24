@@ -49,12 +49,13 @@ func newVersionedDir(node *versionedNode, inode uint64, parent *versionedDir) *v
 
 func (this *versionedDir) createDir(name string) (*versionedDir, error) {
 	childPath := path.Join(this.node.path, name)
+	childPathFull := this.node.ver.rebasePath(childPath)
 
-	if err := os.Mkdir(childPath, 0755); err != nil {
+	if err := os.Mkdir(childPathFull, 0755); err != nil {
 		return nil, err
 	}
 
-	info, err := os.Stat(childPath)
+	info, err := os.Stat(childPathFull)
 	if err != nil {
 		return nil, err
 	}
@@ -65,14 +66,15 @@ func (this *versionedDir) createDir(name string) (*versionedDir, error) {
 
 func (this *versionedDir) createFile(name string, flags int) (*versionedFile, error) {
 	childPath := path.Join(this.node.path, name)
+	childPathFull := this.node.ver.rebasePath(childPath)
 
-	file, err := os.OpenFile(name, flags, 0644)
+	file, err := os.OpenFile(childPathFull, flags, 0644)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
-	info, err := os.Stat(childPath)
+	info, err := os.Stat(childPathFull)
 	if err != nil {
 		return nil, err
 	}
@@ -102,6 +104,10 @@ func (this *versionedDir) Create(ctx context.Context, req *fuse.CreateRequest, r
 
 		return file, file, nil
 	}
+}
+
+func (this *versionedDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
+	return this.createDir(req.Name)
 }
 
 func (this *versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
