@@ -26,6 +26,7 @@ import (
 	"bazil.org/fuse"
 	"golang.org/x/net/context"
 	"io/ioutil"
+	"log"
 	"os"
 )
 
@@ -78,9 +79,20 @@ func (this versionedFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) err
 	return nil
 }
 
-// func (this versionedFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
-// 	return nil
-// }
+func (this versionedFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+	file, err := os.OpenFile(this.node.rebasedPath(), os.O_RDONLY, 0666)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	resp.Data = make([]byte, req.Size, req.Size)
+	if _, err = file.ReadAt(resp.Data, req.Offset); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func (this versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
 	bytes, err := ioutil.ReadFile(this.node.rebasedPath())
