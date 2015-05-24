@@ -42,12 +42,12 @@ func newVersionedFile(node *versionedNode, inode uint64, parent *versionedDir) *
 		parent: parent}
 }
 
-func (this versionedFile) Attr(attr *fuse.Attr) {
+func (this *versionedFile) Attr(attr *fuse.Attr) {
 	this.node.attr(attr)
 	attr.Inode = this.inode
 }
 
-func (this versionedFile) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
+func (this *versionedFile) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
 	file, err := os.OpenFile(this.node.rebasedPath(), os.O_WRONLY, 0666)
 	if err != nil {
 		return err
@@ -63,7 +63,7 @@ func (this versionedFile) Write(ctx context.Context, req *fuse.WriteRequest, res
 	return nil
 }
 
-func (this versionedFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+func (this *versionedFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
 	info, err := os.Stat(this.node.rebasedPath())
 	if err != nil {
 		return err
@@ -74,18 +74,18 @@ func (this versionedFile) Setattr(ctx context.Context, req *fuse.SetattrRequest,
 	return nil
 }
 
-func (this versionedFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
+func (this *versionedFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
 	return nil
 }
 
-func (this versionedFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+func (this *versionedFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	file, err := os.OpenFile(this.node.rebasedPath(), os.O_RDONLY, 0666)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	resp.Data = make([]byte, req.Size, req.Size)
+	resp.Data = make([]byte, req.Size)
 	if _, err = file.ReadAt(resp.Data, req.Offset); err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (this versionedFile) Read(ctx context.Context, req *fuse.ReadRequest, resp 
 	return nil
 }
 
-func (this versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
+func (this *versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
 	bytes, err := ioutil.ReadFile(this.node.rebasedPath())
 	if err != nil {
 		return nil, err
