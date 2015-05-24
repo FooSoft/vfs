@@ -61,18 +61,21 @@ func (this *versionedDir) createDir(name string) (*versionedDir, error) {
 	}
 
 	node := &versionedNode{childPath, info, this.node.ver}
-	return newVersionedDir(node, this.node.ver.inodeAloc.AllocInode(), this), nil
+	dir := newVersionedDir(node, this.node.ver.inodeAloc.AllocInode(), this)
+
+	this.dirs[name] = dir
+	return dir, nil
 }
 
 func (this *versionedDir) createFile(name string, flags int) (*versionedFile, error) {
 	childPath := path.Join(this.node.path, name)
 	childPathFull := this.node.ver.rebasePath(childPath)
 
-	file, err := os.OpenFile(childPathFull, flags, 0644)
+	handle, err := os.OpenFile(childPathFull, flags, 0644)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer handle.Close()
 
 	info, err := os.Stat(childPathFull)
 	if err != nil {
@@ -80,7 +83,10 @@ func (this *versionedDir) createFile(name string, flags int) (*versionedFile, er
 	}
 
 	node := &versionedNode{childPath, info, this.node.ver}
-	return newVersionedFile(node, this.node.ver.inodeAloc.AllocInode(), this), nil
+	file := newVersionedFile(node, this.node.ver.inodeAloc.AllocInode(), this)
+
+	this.files[name] = file
+	return file, nil
 }
 
 func (this *versionedDir) Attr(attr *fuse.Attr) {
@@ -104,6 +110,19 @@ func (this *versionedDir) Create(ctx context.Context, req *fuse.CreateRequest, r
 
 		return file, file, nil
 	}
+}
+
+func (this *versionedDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
+	var fullPath string
+	if req.Dir {
+		fullPath = this.dirs[req.Name].node.rebasedPath()
+		delete(this.dirs, req.Name)
+	} else {
+		fullPath = this.files[req.Name].node.rebasedPath()
+		delete(this.files, req.Name)
+	}
+
+	return os.Remove(fullPath)
 }
 
 func (this *versionedDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
