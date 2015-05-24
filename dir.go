@@ -67,23 +67,21 @@ func (this *versionedDir) createDir(name string) (*versionedDir, error) {
 
 func (this *versionedDir) createFile(name string, flags int) (*versionedFile, error) {
 	childPath := path.Join(this.node.path, name)
-	childPathFull := this.node.ver.rebasePath(childPath)
 
-	handle, err := os.OpenFile(childPathFull, flags, 0644)
+	handle, err := os.OpenFile(this.node.ver.rebasePath(childPath), flags, 0644)
 	if err != nil {
 		return nil, err
 	}
 	defer handle.Close()
 
-	info, err := os.Stat(childPathFull)
+	node, err := newVersionedNode(childPath, this.node.ver)
 	if err != nil {
 		return nil, err
 	}
 
-	node := &versionedNode{childPath, info, this.node.ver}
 	file := newVersionedFile(node, this)
-
 	this.files[name] = file
+
 	return file, nil
 }
 
