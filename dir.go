@@ -26,6 +26,7 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"golang.org/x/net/context"
+	"log"
 	"os"
 	"path"
 )
@@ -80,6 +81,8 @@ func (this *versionedDir) createFile(name string, flags int) (*versionedFile, er
 
 	file := newVersionedFile(node, this)
 	file.handle = handle
+
+	log.Printf("createFile: %s => %v", childPath, file.node.info.Size())
 
 	this.files[name] = file
 	return file, nil

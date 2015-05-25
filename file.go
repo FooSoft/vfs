@@ -27,6 +27,7 @@ import (
 	"bazil.org/fuse/fs"
 	"errors"
 	"golang.org/x/net/context"
+	"log"
 	"os"
 )
 
@@ -82,6 +83,8 @@ func (this *versionedFile) Setattr(ctx context.Context, req *fuse.SetattrRequest
 	if err != nil {
 		return err
 	}
+
+	log.Printf("Setattr: %s => %v", this.node.path, req)
 
 	this.node.info = info
 	this.Attr(&resp.Attr)
