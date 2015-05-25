@@ -61,12 +61,16 @@ func (this *versionedDir) createDir(name string) (*versionedDir, error) {
 
 	dir := newVersionedDir(node, this)
 	this.dirs[name] = dir
-
 	return dir, nil
 }
 
 func (this *versionedDir) createFile(name string, flags int) (*versionedFile, error) {
 	childPath := path.Join(this.node.path, name)
+
+	handle, err := os.OpenFile(this.node.ver.rebasePath(childPath), flags, 0644)
+	if err != nil {
+		return nil, err
+	}
 
 	node, err := newVersionedNode(childPath, this.node.ver)
 	if err != nil {
@@ -74,10 +78,7 @@ func (this *versionedDir) createFile(name string, flags int) (*versionedFile, er
 	}
 
 	file := newVersionedFile(node, this)
-	if err := file.create(name, flags); err != nil {
-		return nil, err
-	}
-
+	file.handle = handle
 	this.files[name] = file
 	return file, nil
 }

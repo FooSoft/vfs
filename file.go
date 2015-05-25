@@ -24,6 +24,7 @@ package main
 
 import (
 	"bazil.org/fuse"
+	"bazil.org/fuse/fs"
 	"errors"
 	"golang.org/x/net/context"
 	"os"
@@ -43,24 +44,18 @@ func newVersionedFile(node *versionedNode, parent *versionedDir) *versionedFile 
 		parent: parent}
 }
 
-func (this *versionedFile) create(path string, flags int) error {
-	handle, err := os.OpenFile(this.node.ver.rebasePath(path), flags, 0644)
+func (this *versionedFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+	if this.handle != nil {
+		return nil, errors.New("attempted to open already opened file")
+	}
+
+	handle, err := os.OpenFile(this.node.rebasedPath(), int(req.Flags), 0644)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	this.handle = handle
-	return nil
-}
-
-func (this *versionedFile) release() bool {
-	if this.handle == nil {
-		return false
-	}
-
-	this.handle.Close()
-	this.handle = nil
-	return true
+	return this, nil
 }
 
 func (this *versionedFile) Attr(attr *fuse.Attr) {
@@ -94,11 +89,13 @@ func (this *versionedFile) Setattr(ctx context.Context, req *fuse.SetattrRequest
 }
 
 func (this *versionedFile) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
-	if this.release() {
-		return nil
+	if this.handle == nil {
+		return errors.New("attempted to release unopened file")
 	}
 
-	return errors.New("attempted to release unopened file")
+	this.handle.Close()
+	this.handle = nil
+	return nil
 }
 
 func (this *versionedFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
