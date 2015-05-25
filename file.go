@@ -24,8 +24,8 @@ package main
 
 import (
 	"bazil.org/fuse"
+	"errors"
 	"golang.org/x/net/context"
-	"io/ioutil"
 	"os"
 )
 
@@ -33,6 +33,7 @@ type versionedFile struct {
 	node   *versionedNode
 	inode  uint64
 	parent *versionedDir
+	handle *os.File
 }
 
 func newVersionedFile(node *versionedNode, parent *versionedDir) *versionedFile {
@@ -42,19 +43,37 @@ func newVersionedFile(node *versionedNode, parent *versionedDir) *versionedFile 
 		parent: parent}
 }
 
+func (this *versionedFile) create(path string, flags int) error {
+	handle, err := os.OpenFile(this.node.ver.rebasePath(path), flags, 0644)
+	if err != nil {
+		return err
+	}
+
+	this.handle = handle
+	return nil
+}
+
+func (this *versionedFile) release() bool {
+	if this.handle == nil {
+		return false
+	}
+
+	this.handle.Close()
+	this.handle = nil
+	return true
+}
+
 func (this *versionedFile) Attr(attr *fuse.Attr) {
 	this.node.attr(attr)
 	attr.Inode = this.inode
 }
 
 func (this *versionedFile) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
-	file, err := os.OpenFile(this.node.rebasedPath(), os.O_WRONLY, 0666)
-	if err != nil {
-		return err
+	if this.handle == nil {
+		return errors.New("attempted to write unopened file")
 	}
-	defer file.Close()
 
-	size, err := file.WriteAt(req.Data, req.Offset)
+	size, err := this.handle.WriteAt(req.Data, req.Offset)
 	if err != nil {
 		return err
 	}
@@ -74,19 +93,25 @@ func (this *versionedFile) Setattr(ctx context.Context, req *fuse.SetattrRequest
 	return nil
 }
 
+func (this *versionedFile) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
+	if this.release() {
+		return nil
+	}
+
+	return errors.New("attempted to release unopened file")
+}
+
 func (this *versionedFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
 	return nil
 }
 
 func (this *versionedFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
-	file, err := os.OpenFile(this.node.rebasedPath(), os.O_RDONLY, 0666)
-	if err != nil {
-		return err
+	if this.handle == nil {
+		return errors.New("attempted to read unopened file")
 	}
-	defer file.Close()
 
 	resp.Data = make([]byte, req.Size)
-	if _, err = file.ReadAt(resp.Data, req.Offset); err != nil {
+	if _, err := this.handle.ReadAt(resp.Data, req.Offset); err != nil {
 		return err
 	}
 
@@ -94,10 +119,14 @@ func (this *versionedFile) Read(ctx context.Context, req *fuse.ReadRequest, resp
 }
 
 func (this *versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
-	bytes, err := ioutil.ReadFile(this.node.rebasedPath())
-	if err != nil {
+	if this.handle == nil {
+		return nil, errors.New("attempted to read unopened file")
+	}
+
+	data := make([]byte, this.node.info.Size())
+	if _, err := this.handle.Read(data); err != nil {
 		return nil, err
 	}
 
-	return bytes, nil
+	return data, nil
 }
