@@ -58,12 +58,12 @@ func (this *database) load(dir string) error {
 		return err
 	}
 
-	dirs, err := this.scan(this.base)
+	names, err := this.scan(this.base)
 	if err != nil {
 		return err
 	}
 
-	this.vers, err = this.version(dirs)
+	this.vers, err = this.version(this.base, names)
 	if err != nil {
 		return err
 	}
@@ -79,17 +79,17 @@ func (this *database) save() error {
 	return nil
 }
 
-func (this *database) version(dirs []string) ([]*version, error) {
+func (this *database) version(base string, names []string) ([]*version, error) {
 	var vers []*version
 
 	var parent *version
-	for _, dir := range dirs {
-		time, err := this.parseVerName(path.Base(dir))
+	for _, name := range names {
+		timestamp, err := this.parseVerName(name)
 		if err != nil {
 			return nil, err
 		}
 
-		ver, err := newVersion(dir, time, this, parent)
+		ver, err := newVersion(path.Join(base, name), timestamp, this, parent)
 		if err != nil {
 			return nil, err
 		}
@@ -116,14 +116,15 @@ func (this *database) scan(dir string) ([]string, error) {
 		return nil, err
 	}
 
-	var dirs []string
+	var names []string
 	for _, node := range nodes {
 		if node.IsDir() {
-			dirs = append(dirs, filepath.Join(dir, node.Name()))
+			names = append(names, node.Name())
 		}
 	}
 
-	return dirs, nil
+	names = append(names, this.buildVerName(time.Now()))
+	return names, nil
 }
 
 func (this *database) Root() (fs.Node, error) {
@@ -135,11 +136,11 @@ func (this *database) AllocInode() uint64 {
 }
 
 func (this *database) buildVerName(timestamp time.Time) string {
-	return fmt.Sprintf("%x", timestamp.Unix())
+	return fmt.Sprintf("vfs_%x", timestamp.Unix())
 }
 
 func (this *database) parseVerName(name string) (time.Time, error) {
-	re, err := regexp.Compile(`vfs_([0-9a-f])$`)
+	re, err := regexp.Compile(`vfs_([0-9a-f]+)$`)
 	if err != nil {
 		return time.Unix(0, 0), err
 	}
