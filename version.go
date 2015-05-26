@@ -158,10 +158,6 @@ func (this *version) resolve() error {
 	return nil
 }
 
-func (this *version) metadataPath() string {
-	return filepath.Join(this.base, "meta.json")
-}
-
 func (this *version) rebasePath(paths ...string) string {
 	combined := append([]string{this.base, "root"}, paths...)
 	return filepath.Join(combined...)
