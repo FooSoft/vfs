@@ -31,9 +31,10 @@ import (
 )
 
 type versionedNode struct {
-	path string
-	info os.FileInfo
-	ver  *version
+	path   string
+	info   os.FileInfo
+	ver    *version
+	shadow *versionedNode
 }
 
 type versionedNodeMap map[string]*versionedNode
@@ -48,7 +49,7 @@ func newVersionedNode(path string, ver *version) (*versionedNode, error) {
 }
 
 func newVersionedNodeStat(path string, ver *version, info os.FileInfo) *versionedNode {
-	return &versionedNode{path, info, ver}
+	return &versionedNode{path, info, ver, nil}
 }
 
 func (this *versionedNode) rebasedPath() string {

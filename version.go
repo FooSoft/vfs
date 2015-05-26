@@ -114,6 +114,7 @@ func (this *version) scanDir(path string) (versionedNodeMap, error) {
 	}
 
 	for ownName, ownNode := range ownNodes {
+		ownNode.shadow = baseNodes[ownName]
 		baseNodes[ownName] = ownNode
 	}
 
