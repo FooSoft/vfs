@@ -52,8 +52,78 @@ func newVersionedNodeStat(path string, ver *version, info os.FileInfo) *versione
 	return &versionedNode{path, info, ver, nil}
 }
 
+func (this *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+	if req.Valid&fuse.SetattrMode != 0 {
+		if err := os.Chmod(this.rebasedPath(), req.Mode); err != nil {
+			return err
+		}
+	}
+
+	if setGid, setUid := req.Valid&fuse.SetattrGid != 0, req.Valid&fuse.SetattrUid != 0; setGid || setUid {
+		gid, uid := this.owner()
+		if setGid {
+			gid = req.Gid
+		}
+		if setUid {
+			uid = req.Uid
+		}
+
+		if err := os.Chown(this.rebasedPath(), int(uid), int(gid)); err != nil {
+			return err
+		}
+	}
+
+	if setAtime, setMtime := req.Valid&fuse.SetattrAtime != 0, req.Valid&fuse.SetattrMtime != 0; setAtime || setMtime {
+		atime, mtime, _ := this.times()
+		if setAtime {
+			atime = req.Atime
+		}
+		if setMtime {
+			mtime = req.Mtime
+		}
+
+		if err := os.Chtimes(this.rebasedPath(), atime, mtime); err != nil {
+			return err
+		}
+	}
+
+	if err := this.updateInfo(); err != nil {
+		return err
+	}
+
+	this.attr(&resp.Attr)
+	return nil
+}
+
+func (this *versionedNode) updateInfo() error {
+	info, err := os.Stat(this.rebasedPath())
+	if err != nil {
+		return err
+	}
+
+	this.info = info
+	return nil
+}
+
 func (this *versionedNode) rebasedPath() string {
 	return this.ver.rebasePath(this.path)
+}
+
+func (this *versionedNode) owner() (gid, uid uint32) {
+	stat := this.info.Sys().(*syscall.Stat_t)
+
+	gid = stat.Gid
+	uid = stat.Uid
+	return
+}
+
+func (this *versionedNode) times() (atime, mtime, ctime time.Time) {
+	stat := this.info.Sys().(*syscall.Stat_t)
+
+	atime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
+	mtime = this.info.ModTime()
+	ctime = time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
+	return
 }
 
 func (this *versionedNode) attr(attr *fuse.Attr) {
@@ -61,13 +131,10 @@ func (this *versionedNode) attr(attr *fuse.Attr) {
 
 	attr.Size = uint64(this.info.Size())
 	attr.Blocks = uint64(stat.Blocks)
-	attr.Atime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
-	attr.Mtime = this.info.ModTime()
-	attr.Ctime = time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
+	attr.Atime, attr.Mtime, attr.Ctime = this.times()
 	attr.Mode = this.info.Mode()
 	attr.Nlink = uint32(stat.Nlink)
-	attr.Uid = stat.Uid
-	attr.Gid = stat.Gid
+	attr.Uid, attr.Gid = this.owner()
 	attr.Rdev = uint32(stat.Rdev)
 }
 

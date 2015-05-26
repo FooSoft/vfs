@@ -91,19 +91,16 @@ func (this *versionedDir) Attr(attr *fuse.Attr) {
 }
 
 func (this *versionedDir) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
-	info, err := os.Stat(this.node.rebasedPath())
-	if err != nil {
+	if err := this.node.updateInfo(); err != nil {
 		return err
 	}
 
-	this.node.info = info
 	this.Attr(&resp.Attr)
 	return nil
 }
 
 func (this *versionedDir) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
-	this.Attr(&resp.Attr)
-	return nil
+	return this.node.setAttr(req, resp)
 }
 
 func (this *versionedDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
