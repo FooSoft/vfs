@@ -28,8 +28,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -47,22 +45,7 @@ type InodeAllocator interface {
 	AllocInode() uint64
 }
 
-func newVersion(base string, allocator InodeAllocator, parent *version) (*version, error) {
-	re, err := regexp.Compile(`/vfs_([0-9a-f])$`)
-	if err != nil {
-		return nil, err
-	}
-
-	matches := re.FindStringSubmatch(base)
-	if len(matches) < 2 {
-		return nil, fmt.Errorf("invalid version identifier for %s", base)
-	}
-
-	timeval, err := strconv.ParseInt(matches[1], 16, 64)
-	if err != nil {
-		return nil, err
-	}
-
+func newVersion(base string, timestamp time.Time, allocator InodeAllocator, parent *version) (*version, error) {
 	meta, err := newVersionMetadata(filepath.Join(base, "meta.json"))
 	if err != nil {
 		return nil, err
@@ -71,7 +54,7 @@ func newVersion(base string, allocator InodeAllocator, parent *version) (*versio
 	ver := &version{
 		base:      base,
 		parent:    parent,
-		timestamp: time.Unix(timeval, 0),
+		timestamp: timestamp,
 		meta:      meta,
 		inodeAloc: allocator}
 
@@ -170,11 +153,11 @@ func (this *version) Root() (fs.Node, error) {
 func (this *version) dump(root *versionedDir, depth int) {
 	indent := strings.Repeat("\t", depth)
 	for name, dir := range root.dirs {
-		fmt.Printf("%s+ %s [%s@%d]\n", indent, name, dir.node.path, dir.node.ver.timestamp.Unix())
+		fmt.Printf("%s+ %s [%s@%x]\n", indent, name, dir.node.path, this.timestamp.Unix())
 		this.dump(dir, depth+1)
 	}
 	for name, file := range root.files {
-		fmt.Printf("%s- %s [%s@%d]\n", indent, name, file.node.path, file.node.ver.timestamp.Unix())
+		fmt.Printf("%s- %s [%s@%x]\n", indent, name, file.node.path, this.timestamp.Unix())
 	}
 }
 

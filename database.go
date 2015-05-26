@@ -24,9 +24,15 @@ package main
 
 import (
 	"bazil.org/fuse/fs"
+	"errors"
+	"fmt"
 	"io/ioutil"
+	"path"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"sync/atomic"
+	"time"
 )
 
 type database struct {
@@ -57,7 +63,7 @@ func (this *database) load(dir string) error {
 		return err
 	}
 
-	this.vers, err = this.versions(dirs)
+	this.vers, err = this.version(dirs)
 	if err != nil {
 		return err
 	}
@@ -73,12 +79,17 @@ func (this *database) save() error {
 	return nil
 }
 
-func (this *database) versions(dirs []string) ([]*version, error) {
+func (this *database) version(dirs []string) ([]*version, error) {
 	var vers []*version
 
 	var parent *version
 	for _, dir := range dirs {
-		ver, err := newVersion(dir, this, parent)
+		time, err := this.parseVerName(path.Base(dir))
+		if err != nil {
+			return nil, err
+		}
+
+		ver, err := newVersion(dir, time, this, parent)
 		if err != nil {
 			return nil, err
 		}
@@ -121,4 +132,27 @@ func (this *database) Root() (fs.Node, error) {
 
 func (this *database) AllocInode() uint64 {
 	return atomic.AddUint64(&this.inodeCnt, 1)
+}
+
+func (this *database) buildVerName(timestamp time.Time) string {
+	return fmt.Sprintf("%x", timestamp.Unix())
+}
+
+func (this *database) parseVerName(name string) (time.Time, error) {
+	re, err := regexp.Compile(`vfs_([0-9a-f])$`)
+	if err != nil {
+		return time.Unix(0, 0), err
+	}
+
+	matches := re.FindStringSubmatch(name)
+	if len(matches) < 2 {
+		return time.Unix(0, 0), errors.New("invalid version identifier")
+	}
+
+	timestamp, err := strconv.ParseInt(matches[1], 16, 64)
+	if err != nil {
+		return time.Unix(0, 0), err
+	}
+
+	return time.Unix(timestamp, 0), nil
 }
