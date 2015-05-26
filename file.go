@@ -27,7 +27,6 @@ import (
 	"bazil.org/fuse/fs"
 	"errors"
 	"golang.org/x/net/context"
-	"log"
 	"os"
 )
 
@@ -64,9 +63,51 @@ func (this *versionedFile) Attr(attr *fuse.Attr) {
 	attr.Inode = this.inode
 }
 
+func (this *versionedFile) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
+	info, err := os.Stat(this.node.rebasedPath())
+	if err != nil {
+		return err
+	}
+
+	this.node.info = info
+	this.Attr(&resp.Attr)
+	return nil
+}
+
+func (this *versionedFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+	this.Attr(&resp.Attr)
+	return nil
+}
+
+func (this *versionedFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+	if this.handle == nil {
+		return errors.New("attempted to read from unopened file")
+	}
+
+	resp.Data = make([]byte, req.Size)
+	if _, err := this.handle.ReadAt(resp.Data, req.Offset); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (this *versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
+	if this.handle == nil {
+		return nil, errors.New("attempted to read from unopened file")
+	}
+
+	data := make([]byte, this.node.info.Size())
+	if _, err := this.handle.Read(data); err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
 func (this *versionedFile) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
 	if this.handle == nil {
-		return errors.New("attempted to write unopened file")
+		return errors.New("attempted to write to unopened file")
 	}
 
 	size, err := this.handle.WriteAt(req.Data, req.Offset)
@@ -75,19 +116,6 @@ func (this *versionedFile) Write(ctx context.Context, req *fuse.WriteRequest, re
 	}
 
 	resp.Size = size
-	return nil
-}
-
-func (this *versionedFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
-	info, err := os.Stat(this.node.rebasedPath())
-	if err != nil {
-		return err
-	}
-
-	log.Printf("Setattr: %s => %v", this.node.path, req)
-
-	this.node.info = info
-	this.Attr(&resp.Attr)
 	return nil
 }
 
@@ -102,31 +130,9 @@ func (this *versionedFile) Release(ctx context.Context, req *fuse.ReleaseRequest
 }
 
 func (this *versionedFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
-	return nil
-}
-
-func (this *versionedFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	if this.handle == nil {
-		return errors.New("attempted to read unopened file")
+		return errors.New("attempted to sync unopened file")
 	}
 
-	resp.Data = make([]byte, req.Size)
-	if _, err := this.handle.ReadAt(resp.Data, req.Offset); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (this *versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
-	if this.handle == nil {
-		return nil, errors.New("attempted to read unopened file")
-	}
-
-	data := make([]byte, this.node.info.Size())
-	if _, err := this.handle.Read(data); err != nil {
-		return nil, err
-	}
-
-	return data, nil
+	return this.handle.Sync()
 }

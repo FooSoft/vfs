@@ -26,7 +26,6 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"golang.org/x/net/context"
-	"log"
 	"os"
 	"path"
 )
@@ -82,8 +81,6 @@ func (this *versionedDir) createFile(name string, flags int) (*versionedFile, er
 	file := newVersionedFile(node, this)
 	file.handle = handle
 
-	log.Printf("createFile: %s => %v", childPath, file.node.info.Size())
-
 	this.files[name] = file
 	return file, nil
 }
@@ -91,6 +88,22 @@ func (this *versionedDir) createFile(name string, flags int) (*versionedFile, er
 func (this *versionedDir) Attr(attr *fuse.Attr) {
 	this.node.attr(attr)
 	attr.Inode = this.inode
+}
+
+func (this *versionedDir) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
+	info, err := os.Stat(this.node.rebasedPath())
+	if err != nil {
+		return err
+	}
+
+	this.node.info = info
+	this.Attr(&resp.Attr)
+	return nil
+}
+
+func (this *versionedDir) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+	this.Attr(&resp.Attr)
+	return nil
 }
 
 func (this *versionedDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
