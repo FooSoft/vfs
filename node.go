@@ -134,7 +134,7 @@ func (this *versionedNode) attr(attr *fuse.Attr) {
 	attr.Atime, attr.Mtime, attr.Ctime = this.times()
 	attr.Mode = this.info.Mode()
 	attr.Nlink = uint32(stat.Nlink)
-	attr.Uid, attr.Gid = this.owner()
+	attr.Gid, attr.Uid = this.owner()
 	attr.Rdev = uint32(stat.Rdev)
 }
 
