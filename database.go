@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -58,12 +59,16 @@ func (this *database) load(dir string) error {
 		return err
 	}
 
-	names, err := this.scan(this.base)
+	if err := this.buildNewVersion(this.base); err != nil {
+		return nil
+	}
+
+	names, err := this.scanVersions(this.base)
 	if err != nil {
 		return err
 	}
 
-	this.vers, err = this.version(this.base, names)
+	this.vers, err = this.buildVersions(this.base, names)
 	if err != nil {
 		return err
 	}
@@ -79,7 +84,7 @@ func (this *database) save() error {
 	return nil
 }
 
-func (this *database) version(base string, names []string) ([]*version, error) {
+func (this *database) buildVersions(base string, names []string) ([]*version, error) {
 	var vers []*version
 
 	var parent *version
@@ -101,6 +106,11 @@ func (this *database) version(base string, names []string) ([]*version, error) {
 	return vers, nil
 }
 
+func (this *database) buildNewVersion(base string) error {
+	name := this.buildVerName(time.Now())
+	return os.Mkdir(path.Join(base, name), 0755)
+}
+
 func (this *database) lastVersion() *version {
 	count := len(this.vers)
 	if count == 0 {
@@ -110,7 +120,7 @@ func (this *database) lastVersion() *version {
 	return this.vers[count-1]
 }
 
-func (this *database) scan(dir string) ([]string, error) {
+func (this *database) scanVersions(dir string) ([]string, error) {
 	nodes, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -123,7 +133,6 @@ func (this *database) scan(dir string) ([]string, error) {
 		}
 	}
 
-	names = append(names, this.buildVerName(time.Now()))
 	return names, nil
 }
 
