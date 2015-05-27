@@ -108,7 +108,15 @@ func (this *database) buildVersions(base string, names []string) ([]*version, er
 
 func (this *database) buildNewVersion(base string) error {
 	name := this.buildVerName(time.Now())
-	return os.Mkdir(path.Join(base, name), 0755)
+
+	if err := os.Mkdir(path.Join(base, name), 0755); err != nil {
+		return err
+	}
+	if err := os.Mkdir(path.Join(base, name, "root"), 0755); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (this *database) lastVersion() *version {
@@ -145,11 +153,11 @@ func (this *database) AllocInode() uint64 {
 }
 
 func (this *database) buildVerName(timestamp time.Time) string {
-	return fmt.Sprintf("vfs_%x", timestamp.Unix())
+	return fmt.Sprintf("ver_%.16x", timestamp.Unix())
 }
 
 func (this *database) parseVerName(name string) (time.Time, error) {
-	re, err := regexp.Compile(`vfs_([0-9a-f]+)$`)
+	re, err := regexp.Compile(`ver_([0-9a-f]+)$`)
 	if err != nil {
 		return time.Unix(0, 0), err
 	}
