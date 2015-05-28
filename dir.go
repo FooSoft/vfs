@@ -54,7 +54,7 @@ func (this *versionedDir) createDir(name string) (*versionedDir, error) {
 		return nil, err
 	}
 
-	node, err := newVersionedNode(childPath, this.node.ver)
+	node, err := newVersionedNode(childPath, this.node.parent, this.node.ver)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (this *versionedDir) createFile(name string, flags int) (*versionedFile, er
 		return nil, err
 	}
 
-	node, err := newVersionedNode(childPath, this.node.ver)
+	node, err := newVersionedNode(childPath, this.node.parent, this.node.ver)
 	if err != nil {
 		return nil, err
 	}
