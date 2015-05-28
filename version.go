@@ -46,7 +46,7 @@ type InodeAllocator interface {
 	AllocInode() uint64
 }
 
-func newVersion(base string, timestamp time.Time, allocator InodeAllocator, parent, terminus *version) (*version, error) {
+func newVersion(base string, timestamp time.Time, allocator InodeAllocator, parent *version) (*version, error) {
 	meta, err := newVersionMetadata(filepath.Join(base, "meta.json"))
 	if err != nil {
 		return nil, err
@@ -55,7 +55,6 @@ func newVersion(base string, timestamp time.Time, allocator InodeAllocator, pare
 	ver := &version{
 		base:      base,
 		parent:    parent,
-		terminus:  terminus,
 		timestamp: timestamp,
 		meta:      meta,
 		inodeAloc: allocator}

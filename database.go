@@ -94,7 +94,7 @@ func (this *database) buildVersions(base string, names []string) ([]*version, er
 			return nil, err
 		}
 
-		ver, err := newVersion(path.Join(base, name), timestamp, this, parent, nil)
+		ver, err := newVersion(path.Join(base, name), timestamp, this, parent)
 		if err != nil {
 			return nil, err
 		}
