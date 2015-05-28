@@ -94,13 +94,17 @@ func (this *database) buildVersions(base string, names []string) ([]*version, er
 			return nil, err
 		}
 
-		ver, err := newVersion(path.Join(base, name), timestamp, this, parent)
+		ver, err := newVersion(path.Join(base, name), timestamp, this, parent, nil)
 		if err != nil {
 			return nil, err
 		}
 
 		vers = append(vers, ver)
 		parent = ver
+	}
+
+	for _, ver := range vers {
+		ver.terminus = vers[len(vers)-1]
 	}
 
 	return vers, nil
