@@ -53,10 +53,6 @@ func newVersionedNodeStat(path string, parent *versionedNode, ver *version, info
 	return &versionedNode{path, info, parent, nil, ver}
 }
 
-// func (this *versionedNode) version() (*versionedNode, error) {
-// 	return nil, nil
-// }
-
 func (this *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
 	if req.Valid&fuse.SetattrMode != 0 {
 		if err := os.Chmod(this.rebasedPath(), req.Mode); err != nil {
