@@ -24,15 +24,9 @@ package main
 
 import (
 	"bazil.org/fuse/fs"
-	"errors"
-	"fmt"
 	"io/ioutil"
-	"os"
 	"path"
 	"path/filepath"
-	"regexp"
-	"strconv"
-	"time"
 )
 
 //
@@ -61,16 +55,11 @@ func (this *database) load(dir string) error {
 		return err
 	}
 
-	if err := this.buildNewVersion(this.base); err != nil {
+	if err := buildNewVersion(this.base); err != nil {
 		return nil
 	}
 
-	names, err := this.scanVersions(this.base)
-	if err != nil {
-		return err
-	}
-
-	this.vers, err = this.buildVersions(this.base, names)
+	this.vers, err = this.buildVersions(this.base)
 	if err != nil {
 		return err
 	}
@@ -86,17 +75,26 @@ func (this *database) save() error {
 	return nil
 }
 
-func (this *database) buildVersions(base string, names []string) ([]*version, error) {
-	var vers []*version
+func (this *database) buildVersions(base string) ([]*version, error) {
+	nodes, err := ioutil.ReadDir(base)
+	if err != nil {
+		return nil, err
+	}
 
 	var parent *version
-	for _, name := range names {
-		timestamp, err := this.parseVerName(name)
+	var vers []*version
+
+	for _, node := range nodes {
+		if !node.IsDir() {
+			continue
+		}
+
+		timestamp, err := parseVerName(node.Name())
 		if err != nil {
 			return nil, err
 		}
 
-		ver, err := newVersion(path.Join(base, name), timestamp, parent)
+		ver, err := newVersion(path.Join(base, node.Name()), timestamp, parent)
 		if err != nil {
 			return nil, err
 		}
@@ -112,19 +110,6 @@ func (this *database) buildVersions(base string, names []string) ([]*version, er
 	return vers, nil
 }
 
-func (this *database) buildNewVersion(base string) error {
-	name := this.buildVerName(time.Now())
-
-	if err := os.Mkdir(path.Join(base, name), 0755); err != nil {
-		return err
-	}
-	if err := os.Mkdir(path.Join(base, name, "root"), 0755); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (this *database) lastVersion() *version {
 	count := len(this.vers)
 	if count == 0 {
@@ -134,45 +119,6 @@ func (this *database) lastVersion() *version {
 	return this.vers[count-1]
 }
 
-func (this *database) scanVersions(dir string) ([]string, error) {
-	nodes, err := ioutil.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	var names []string
-	for _, node := range nodes {
-		if node.IsDir() {
-			names = append(names, node.Name())
-		}
-	}
-
-	return names, nil
-}
-
 func (this *database) Root() (fs.Node, error) {
 	return this.lastVersion().root, nil
-}
-
-func (this *database) buildVerName(timestamp time.Time) string {
-	return fmt.Sprintf("ver_%.16x", timestamp.Unix())
-}
-
-func (this *database) parseVerName(name string) (time.Time, error) {
-	re, err := regexp.Compile(`ver_([0-9a-f]+)$`)
-	if err != nil {
-		return time.Unix(0, 0), err
-	}
-
-	matches := re.FindStringSubmatch(name)
-	if len(matches) < 2 {
-		return time.Unix(0, 0), errors.New("invalid version identifier")
-	}
-
-	timestamp, err := strconv.ParseInt(matches[1], 16, 64)
-	if err != nil {
-		return time.Unix(0, 0), err
-	}
-
-	return time.Unix(timestamp, 0), nil
 }

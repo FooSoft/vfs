@@ -24,10 +24,14 @@ package main
 
 import (
 	"bazil.org/fuse/fs"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -162,4 +166,44 @@ func (this *version) dumpRoot() {
 
 func (this *version) Root() (fs.Node, error) {
 	return this.root, nil
+}
+
+//
+//	version helpers
+//
+
+func buildNewVersion(base string) error {
+	name := buildVerName(time.Now())
+
+	if err := os.Mkdir(path.Join(base, name), 0755); err != nil {
+		return err
+	}
+	if err := os.Mkdir(path.Join(base, name, "root"), 0755); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func buildVerName(timestamp time.Time) string {
+	return fmt.Sprintf("ver_%.16x", timestamp.Unix())
+}
+
+func parseVerName(name string) (time.Time, error) {
+	re, err := regexp.Compile(`ver_([0-9a-f]+)$`)
+	if err != nil {
+		return time.Unix(0, 0), err
+	}
+
+	matches := re.FindStringSubmatch(name)
+	if len(matches) < 2 {
+		return time.Unix(0, 0), errors.New("invalid version identifier")
+	}
+
+	timestamp, err := strconv.ParseInt(matches[1], 16, 64)
+	if err != nil {
+		return time.Unix(0, 0), err
+	}
+
+	return time.Unix(timestamp, 0), nil
 }
