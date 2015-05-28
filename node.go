@@ -37,7 +37,7 @@ type versionedNode struct {
 	path   string
 	info   os.FileInfo
 	parent *versionedNode
-	shadow *versionedNode
+	prev   *versionedNode
 	ver    *version
 }
 
@@ -114,11 +114,11 @@ func (this *versionedNode) rebasedPath() string {
 }
 
 func (this *versionedNode) rebasedTermPath() string {
-	if this.ver.terminus == nil {
+	if this.ver.last == nil {
 		return this.rebasedPath()
 	}
 
-	return this.ver.terminus.rebasePath(this.path)
+	return this.ver.last.rebasePath(this.path)
 }
 
 func (this *versionedNode) owner() (gid, uid uint32) {

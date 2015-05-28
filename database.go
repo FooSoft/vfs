@@ -81,7 +81,7 @@ func (this *database) buildVersions(base string) ([]*version, error) {
 		return nil, err
 	}
 
-	var parent *version
+	var prev *version
 	var vers []*version
 
 	for _, node := range nodes {
@@ -94,17 +94,17 @@ func (this *database) buildVersions(base string) ([]*version, error) {
 			return nil, err
 		}
 
-		ver, err := newVersion(path.Join(base, node.Name()), timestamp, parent)
+		ver, err := newVersion(path.Join(base, node.Name()), timestamp, prev)
 		if err != nil {
 			return nil, err
 		}
 
 		vers = append(vers, ver)
-		parent = ver
+		prev = ver
 	}
 
 	for _, ver := range vers {
-		ver.terminus = vers[len(vers)-1]
+		ver.last = vers[len(vers)-1]
 	}
 
 	return vers, nil

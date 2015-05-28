@@ -42,14 +42,14 @@ import (
 
 type version struct {
 	base      string
-	parent    *version
-	terminus  *version
+	prev      *version
+	last      *version
 	timestamp time.Time
 	meta      *versionMetadata
 	root      *versionedDir
 }
 
-func newVersion(base string, timestamp time.Time, parent *version) (*version, error) {
+func newVersion(base string, timestamp time.Time, prev *version) (*version, error) {
 	meta, err := newVersionMetadata(filepath.Join(base, "meta.json"))
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func newVersion(base string, timestamp time.Time, parent *version) (*version, er
 
 	ver := &version{
 		base:      base,
-		parent:    parent,
+		prev:      prev,
 		timestamp: timestamp,
 		meta:      meta}
 
@@ -66,10 +66,10 @@ func newVersion(base string, timestamp time.Time, parent *version) (*version, er
 
 func (this *version) scanNode(node *versionedNode) (versionedNodeMap, error) {
 	var baseNodes versionedNodeMap
-	if this.parent != nil {
+	if this.prev != nil {
 		var err error
 
-		baseNodes, err = this.parent.scanNode(node)
+		baseNodes, err = this.prev.scanNode(node)
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +100,7 @@ func (this *version) scanNode(node *versionedNode) (versionedNodeMap, error) {
 	}
 
 	for ownName, ownNode := range ownNodes {
-		ownNode.shadow = baseNodes[ownName]
+		ownNode.prev = baseNodes[ownName]
 		baseNodes[ownName] = ownNode
 	}
 
