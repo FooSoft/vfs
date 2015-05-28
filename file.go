@@ -40,7 +40,7 @@ type versionedFile struct {
 func newVersionedFile(node *versionedNode, parent *versionedDir) *versionedFile {
 	return &versionedFile{
 		node:   node,
-		inode:  node.ver.inodeAloc.AllocInode(),
+		inode:  allocInode(),
 		parent: parent}
 }
 

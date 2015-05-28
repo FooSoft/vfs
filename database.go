@@ -36,10 +36,11 @@ import (
 	"time"
 )
 
+var inodeCnt uint64
+
 type database struct {
-	base     string
-	vers     []*version
-	inodeCnt uint64
+	base string
+	vers []*version
 }
 
 func newDatabase(dir string) (*database, error) {
@@ -94,7 +95,7 @@ func (this *database) buildVersions(base string, names []string) ([]*version, er
 			return nil, err
 		}
 
-		ver, err := newVersion(path.Join(base, name), timestamp, this, parent)
+		ver, err := newVersion(path.Join(base, name), timestamp, parent)
 		if err != nil {
 			return nil, err
 		}
@@ -152,10 +153,6 @@ func (this *database) Root() (fs.Node, error) {
 	return this.lastVersion().root, nil
 }
 
-func (this *database) AllocInode() uint64 {
-	return atomic.AddUint64(&this.inodeCnt, 1)
-}
-
 func (this *database) buildVerName(timestamp time.Time) string {
 	return fmt.Sprintf("ver_%.16x", timestamp.Unix())
 }
@@ -177,4 +174,8 @@ func (this *database) parseVerName(name string) (time.Time, error) {
 	}
 
 	return time.Unix(timestamp, 0), nil
+}
+
+func allocInode() uint64 {
+	return atomic.AddUint64(&inodeCnt, 1)
 }

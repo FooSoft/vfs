@@ -43,7 +43,7 @@ func newVersionedDir(node *versionedNode, parent *versionedDir) *versionedDir {
 		dirs:   make(map[string]*versionedDir),
 		files:  make(map[string]*versionedFile),
 		node:   node,
-		inode:  node.ver.inodeAloc.AllocInode(),
+		inode:  allocInode(),
 		parent: parent}
 }
 
