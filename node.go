@@ -24,11 +24,14 @@ package main
 
 import (
 	"bazil.org/fuse"
-	"fmt"
 	"os"
 	"syscall"
 	"time"
 )
+
+//
+//	versionedNode
+//
 
 type versionedNode struct {
 	path   string
@@ -110,6 +113,14 @@ func (this *versionedNode) rebasedPath() string {
 	return this.ver.rebasePath(this.path)
 }
 
+func (this *versionedNode) rebasedTermPath() string {
+	if this.ver.terminus == nil {
+		return this.rebasedPath()
+	}
+
+	return this.ver.terminus.rebasePath(this.path)
+}
+
 func (this *versionedNode) owner() (gid, uid uint32) {
 	stat := this.info.Sys().(*syscall.Stat_t)
 
@@ -137,8 +148,4 @@ func (this *versionedNode) attr(attr *fuse.Attr) {
 	attr.Nlink = uint32(stat.Nlink)
 	attr.Gid, attr.Uid = this.owner()
 	attr.Rdev = uint32(stat.Rdev)
-}
-
-func (this *versionedNode) String() string {
-	return fmt.Sprintf("%s (%s)", this.path, this.rebasedPath())
 }

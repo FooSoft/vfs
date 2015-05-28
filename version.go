@@ -32,6 +32,10 @@ import (
 	"time"
 )
 
+//
+//	version
+//
+
 type version struct {
 	base      string
 	parent    *version
@@ -141,10 +145,6 @@ func (this *version) rebasePath(paths ...string) string {
 	return filepath.Join(combined...)
 }
 
-func (this *version) Root() (fs.Node, error) {
-	return this.root, nil
-}
-
 func (this *version) dump(root *versionedDir, depth int) {
 	indent := strings.Repeat("\t", depth)
 	for name, dir := range root.dirs {
@@ -158,4 +158,8 @@ func (this *version) dump(root *versionedDir, depth int) {
 
 func (this *version) dumpRoot() {
 	this.dump(this.root, 0)
+}
+
+func (this *version) Root() (fs.Node, error) {
+	return this.root, nil
 }

@@ -29,6 +29,10 @@ import (
 	"strings"
 )
 
+//
+//	versionMetadata
+//
+
 type versionMetadata struct {
 	Deleted []string `json:"deleted"`
 	path    string

@@ -30,6 +30,10 @@ import (
 	"path"
 )
 
+//
+//	versionedDir
+//
+
 type versionedDir struct {
 	dirs   map[string]*versionedDir
 	files  map[string]*versionedFile

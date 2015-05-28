@@ -30,6 +30,10 @@ import (
 	"os"
 )
 
+//
+//	versionedFile
+//
+
 type versionedFile struct {
 	node   *versionedNode
 	inode  uint64

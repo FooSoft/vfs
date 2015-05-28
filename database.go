@@ -32,11 +32,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
-	"sync/atomic"
 	"time"
 )
 
-var inodeCnt uint64
+//
+//	database
+//
 
 type database struct {
 	base string
@@ -174,8 +175,4 @@ func (this *database) parseVerName(name string) (time.Time, error) {
 	}
 
 	return time.Unix(timestamp, 0), nil
-}
-
-func allocInode() uint64 {
-	return atomic.AddUint64(&inodeCnt, 1)
 }
