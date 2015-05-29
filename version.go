@@ -88,7 +88,7 @@ func (this *version) scanNode(node *versionedNode) (versionedNodeMap, error) {
 			for _, info := range infos {
 				childName := info.Name()
 				childPath := filepath.Join(node.path, childName)
-				ownNodes[childName] = newVersionedNodeStat(childPath, node, this, info)
+				ownNodes[childName] = newVersionedNodeStat(childPath, this, info)
 			}
 		}
 
@@ -100,7 +100,6 @@ func (this *version) scanNode(node *versionedNode) (versionedNodeMap, error) {
 	}
 
 	for ownName, ownNode := range ownNodes {
-		ownNode.prev = baseNodes[ownName]
 		baseNodes[ownName] = ownNode
 	}
 
@@ -130,7 +129,7 @@ func (this *version) buildVerDir(dir *versionedDir) error {
 }
 
 func (this *version) resolve() error {
-	node, err := newVersionedNode("/", nil, this)
+	node, err := newVersionedNode("/", this)
 	if err != nil {
 		return err
 	}
