@@ -88,9 +88,7 @@ func (this *database) buildVersions(base string) (versionList, error) {
 		return nil, err
 	}
 
-	var parent *version
 	var vers versionList
-
 	for _, node := range nodes {
 		if !node.IsDir() {
 			continue
@@ -101,16 +99,22 @@ func (this *database) buildVersions(base string) (versionList, error) {
 			return nil, err
 		}
 
-		ver, err := newVersion(path.Join(base, node.Name()), timestamp, this, parent)
+		ver, err := newVersion(path.Join(base, node.Name()), timestamp, this)
 		if err != nil {
 			return nil, err
 		}
 
 		vers = append(vers, ver)
-		parent = ver
 	}
 
 	sort.Sort(vers)
+
+	var parentVer *version
+	for _, ver := range vers {
+		ver.parent = parentVer
+		parentVer = ver
+	}
+
 	return vers, nil
 }
 

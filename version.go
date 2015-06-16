@@ -48,13 +48,13 @@ type version struct {
 	db        *database
 }
 
-func newVersion(base string, timestamp time.Time, db *database, parent *version) (*version, error) {
+func newVersion(base string, timestamp time.Time, db *database) (*version, error) {
 	meta, err := newVersionMetadata(filepath.Join(base, "meta.json"))
 	if err != nil {
 		return nil, err
 	}
 
-	return &version{base, parent, timestamp, meta, nil, db}, nil
+	return &version{base, nil, timestamp, meta, nil, db}, nil
 }
 
 func (this *version) scanDir(path string) (versionedNodeMap, error) {
