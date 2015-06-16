@@ -41,7 +41,6 @@ type versionedDir struct {
 	node   *versionedNode
 	inode  uint64
 	parent *versionedDir
-	dirty  bool
 }
 
 func newVersionedDir(node *versionedNode, parent *versionedDir) *versionedDir {
@@ -50,12 +49,11 @@ func newVersionedDir(node *versionedNode, parent *versionedDir) *versionedDir {
 		files:  make(map[string]*versionedFile),
 		node:   node,
 		inode:  allocInode(),
-		parent: parent,
-		dirty:  false}
+		parent: parent}
 }
 
 func (this *versionedDir) version() error {
-	if this.dirty {
+	if this.node.flags&NodeModified == NodeModified {
 		return nil
 	}
 
@@ -71,8 +69,8 @@ func (this *versionedDir) version() error {
 		return err
 	}
 
+	node.flags |= NodeModified
 	this.node = node
-	this.dirty = true
 
 	return nil
 }

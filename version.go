@@ -55,14 +55,7 @@ func newVersion(base string, timestamp time.Time, db *database, parent *version)
 		return nil, err
 	}
 
-	ver := &version{
-		base:      base,
-		parent:    parent,
-		timestamp: timestamp,
-		meta:      meta,
-		db:        db}
-
-	return ver, nil
+	return &version{base, parent, timestamp, meta, nil, db}, nil
 }
 
 func (this *version) scanDir(path string) (versionedNodeMap, error) {
