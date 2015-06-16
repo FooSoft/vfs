@@ -73,6 +73,12 @@ func (this *database) load(dir string) error {
 }
 
 func (this *database) save() error {
+	for _, ver := range this.vers {
+		if err := ver.finalize(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

@@ -33,17 +33,12 @@ import (
 //	versionedNode
 //
 
-const (
-	NodeModified = 1 << iota
-	NodeDeleted
-)
-
 type versionedNode struct {
-	path   string
-	info   os.FileInfo
-	ver    *version
-	parent *versionedNode
-	flags  uint
+	path      string
+	info      os.FileInfo
+	ver       *version
+	parent    *versionedNode
+	versioned bool
 }
 
 type versionedNodeMap map[string]*versionedNode
@@ -58,7 +53,18 @@ func newVersionedNode(path string, ver *version, parent *versionedNode) (*versio
 }
 
 func newVersionedNodeStat(path string, ver *version, parent *versionedNode, info os.FileInfo) *versionedNode {
-	return &versionedNode{path, info, ver, parent, 0}
+	return &versionedNode{path, info, ver, parent, false}
+}
+
+func (this *versionedNode) remove() error {
+	if this.versioned {
+		if err := os.Remove(this.rebasedPath()); err != nil {
+			return err
+		}
+	}
+
+	this.ver.removePath(this.path)
+	return nil
 }
 
 func (this *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {

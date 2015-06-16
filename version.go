@@ -143,6 +143,14 @@ func (this *version) rebasePath(paths ...string) string {
 	return filepath.Join(combined...)
 }
 
+func (this *version) removePath(path string) {
+	this.meta.Deleted = append(this.meta.Deleted, path)
+}
+
+func (this *version) finalize() error {
+	return this.meta.save()
+}
+
 func (this *version) dump(root *versionedDir, depth int) {
 	indent := strings.Repeat("\t", depth)
 	for name, dir := range root.dirs {

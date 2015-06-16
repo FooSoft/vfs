@@ -44,16 +44,14 @@ type versionedDir struct {
 }
 
 func newVersionedDir(node *versionedNode, parent *versionedDir) *versionedDir {
-	return &versionedDir{
-		dirs:   make(map[string]*versionedDir),
-		files:  make(map[string]*versionedFile),
-		node:   node,
-		inode:  allocInode(),
-		parent: parent}
+	dirs := make(map[string]*versionedDir)
+	files := make(map[string]*versionedFile)
+
+	return &versionedDir{dirs, files, node, allocInode(), parent}
 }
 
 func (this *versionedDir) version() error {
-	if this.node.flags&NodeModified == NodeModified {
+	if this.node.versioned {
 		return nil
 	}
 
@@ -69,7 +67,7 @@ func (this *versionedDir) version() error {
 		return err
 	}
 
-	node.flags |= NodeModified
+	node.versioned = true
 	this.node = node
 
 	return nil
@@ -91,8 +89,8 @@ func (this *versionedDir) createDir(name string) (*versionedDir, error) {
 	}
 
 	dir := newVersionedDir(node, this)
-
 	this.dirs[name] = dir
+
 	return dir, nil
 }
 
@@ -114,8 +112,8 @@ func (this *versionedDir) createFile(name string, flags int) (*versionedFile, er
 
 	file := newVersionedFile(node, this)
 	file.handle = handle
-
 	this.files[name] = file
+
 	return file, nil
 }
 
@@ -163,17 +161,18 @@ func (this *versionedDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs
 	return this.createDir(req.Name)
 }
 
-func (this *versionedDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
-	var fullPath string
+func (this *versionedDir) Remove(ctx context.Context, req *fuse.RemoveRequest) (err error) {
 	if req.Dir {
-		fullPath = this.dirs[req.Name].node.rebasedPath()
-		delete(this.dirs, req.Name)
+		if err = this.dirs[req.Name].node.remove(); err == nil {
+			delete(this.dirs, req.Name)
+		}
 	} else {
-		fullPath = this.files[req.Name].node.rebasedPath()
-		delete(this.files, req.Name)
+		if err = this.files[req.Name].node.remove(); err == nil {
+			delete(this.files, req.Name)
+		}
 	}
 
-	return os.Remove(fullPath)
+	return
 }
 
 func (this *versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {

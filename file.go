@@ -42,10 +42,7 @@ type versionedFile struct {
 }
 
 func newVersionedFile(node *versionedNode, parent *versionedDir) *versionedFile {
-	return &versionedFile{
-		node:   node,
-		inode:  allocInode(),
-		parent: parent}
+	return &versionedFile{node, allocInode(), parent, nil}
 }
 
 func (this *versionedFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {

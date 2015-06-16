@@ -70,4 +70,8 @@ func main() {
 	if err := conn.MountError; err != nil {
 		log.Fatal(err)
 	}
+
+	if err := db.save(); err != nil {
+		log.Fatal(err)
+	}
 }
