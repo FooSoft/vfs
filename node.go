@@ -57,13 +57,17 @@ func newVersionedNodeStat(path string, ver *version, parent *versionedNode, info
 }
 
 func (this *versionedNode) remove() error {
+	ver := this.ver
+
 	if this.versioned {
 		if err := os.Remove(this.rebasedPath()); err != nil {
 			return err
 		}
+
+		ver = ver.parent
 	}
 
-	this.ver.removePath(this.path)
+	ver.removePath(this.path)
 	return nil
 }
 
