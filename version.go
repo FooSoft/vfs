@@ -63,12 +63,12 @@ func newVersion(base string, timestamp time.Time, parent *version) (*version, er
 	return ver, nil
 }
 
-func (this *version) scanNode(node *versionedNode) (versionedNodeMap, error) {
+func (this *version) scanDir(path string) (versionedNodeMap, error) {
 	var baseNodes versionedNodeMap
 	if this.parent != nil {
 		var err error
 
-		baseNodes, err = this.parent.scanNode(node)
+		baseNodes, err = this.parent.scanDir(path)
 		if err != nil {
 			return nil, err
 		}
@@ -78,7 +78,7 @@ func (this *version) scanNode(node *versionedNode) (versionedNodeMap, error) {
 
 	ownNodes := make(versionedNodeMap)
 	{
-		infos, err := ioutil.ReadDir(this.rebasePath(node.path))
+		infos, err := ioutil.ReadDir(this.rebasePath(path))
 		if !os.IsNotExist(err) {
 			if err != nil {
 				return nil, err
@@ -86,7 +86,7 @@ func (this *version) scanNode(node *versionedNode) (versionedNodeMap, error) {
 
 			for _, info := range infos {
 				childName := info.Name()
-				childPath := filepath.Join(node.path, childName)
+				childPath := filepath.Join(path, childName)
 				ownNodes[childName] = newVersionedNodeStat(childPath, this, nil, info)
 			}
 		}
@@ -107,7 +107,7 @@ func (this *version) scanNode(node *versionedNode) (versionedNodeMap, error) {
 }
 
 func (this *version) buildVerDir(dir *versionedDir) error {
-	nodes, err := this.scanNode(dir.node)
+	nodes, err := this.scanDir(dir.node.path)
 	if err != nil {
 		return err
 	}
