@@ -69,7 +69,7 @@ func (this *versionedFile) Attr(ctx context.Context, attr *fuse.Attr) error {
 }
 
 func (this *versionedFile) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
-	if err := this.node.updateInfo(); err != nil {
+	if err := this.node.sync(); err != nil {
 		return err
 	}
 

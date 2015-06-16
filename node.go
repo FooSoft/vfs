@@ -90,7 +90,7 @@ func (this *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrR
 		}
 	}
 
-	if err := this.updateInfo(); err != nil {
+	if err := this.sync(); err != nil {
 		return err
 	}
 
@@ -98,7 +98,7 @@ func (this *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrR
 	return nil
 }
 
-func (this *versionedNode) updateInfo() error {
+func (this *versionedNode) sync() error {
 	info, err := os.Stat(this.rebasedPath())
 	if err != nil {
 		return err

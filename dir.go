@@ -26,7 +26,6 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"golang.org/x/net/context"
-	"log"
 	"os"
 	"path"
 )
@@ -56,7 +55,6 @@ func newVersionedDir(node *versionedNode, parent *versionedDir) *versionedDir {
 
 func (this *versionedDir) version() error {
 	if this.dirty {
-		log.Printf("not dirty")
 		return nil
 	}
 
@@ -64,20 +62,17 @@ func (this *versionedDir) version() error {
 	rebasedPath := version.rebasePath(this.node.path)
 
 	if err := os.MkdirAll(rebasedPath, 0755); err != nil {
-		log.Printf("cannot create directory %s", rebasedPath)
 		return err
 	}
 
 	node, err := newVersionedNode(this.node.path, version, this.node)
 	if err != nil {
-		log.Printf("cannot create versioned node for %s", rebasedPath)
 		return err
 	}
 
 	this.node = node
 	this.dirty = true
 
-	log.Printf("created directory for %s, %s", version.base, rebasedPath)
 	return nil
 }
 
@@ -126,7 +121,7 @@ func (this *versionedDir) Attr(ctx context.Context, attr *fuse.Attr) error {
 }
 
 func (this *versionedDir) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
-	if err := this.node.updateInfo(); err != nil {
+	if err := this.node.sync(); err != nil {
 		return err
 	}
 
@@ -160,6 +155,14 @@ func (this *versionedDir) Create(ctx context.Context, req *fuse.CreateRequest, r
 	}
 }
 
+func (this *versionedDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
+	if err := this.version(); err != nil {
+		return nil, err
+	}
+
+	return this.createDir(req.Name)
+}
+
 func (this *versionedDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	var fullPath string
 	if req.Dir {
@@ -171,10 +174,6 @@ func (this *versionedDir) Remove(ctx context.Context, req *fuse.RemoveRequest) e
 	}
 
 	return os.Remove(fullPath)
-}
-
-func (this *versionedDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
-	return this.createDir(req.Name)
 }
 
 func (this *versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
