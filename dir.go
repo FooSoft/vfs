@@ -25,6 +25,7 @@ package main
 import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"errors"
 	"golang.org/x/net/context"
 	"os"
 	"path"
@@ -77,8 +78,11 @@ func (this *versionedDir) version() error {
 }
 
 func (this *versionedDir) createDir(name string) (*versionedDir, error) {
-	childPath := path.Join(this.node.path, name)
+	if err := this.version(); err != nil {
+		return nil, err
+	}
 
+	childPath := path.Join(this.node.path, name)
 	if err := os.Mkdir(this.node.ver.rebasePath(childPath), 0755); err != nil {
 		return nil, err
 	}
@@ -95,8 +99,11 @@ func (this *versionedDir) createDir(name string) (*versionedDir, error) {
 }
 
 func (this *versionedDir) createFile(name string, flags int) (*versionedFile, error) {
-	childPath := path.Join(this.node.path, name)
+	if err := this.version(); err != nil {
+		return nil, err
+	}
 
+	childPath := path.Join(this.node.path, name)
 	handle, err := os.OpenFile(this.node.ver.rebasePath(childPath), flags, 0644)
 	if err != nil {
 		return nil, err
@@ -130,36 +137,31 @@ func (this *versionedDir) Getattr(ctx context.Context, req *fuse.GetattrRequest,
 }
 
 func (this *versionedDir) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+	this.version()
 	return this.node.setAttr(req, resp)
 }
 
-func (this *versionedDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
-	if err := this.version(); err != nil {
-		return nil, nil, err
-	}
-
+func (this *versionedDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (node fs.Node, handle fs.Handle, err error) {
 	if req.Mode.IsDir() {
-		dir, err := this.createDir(req.Name)
-		if err != nil {
-			return nil, nil, err
+		var dir *versionedDir
+		if dir, err = this.createDir(req.Name); err == nil {
+			node = dir
+			handle = dir
 		}
-
-		return dir, dir, nil
+	} else if req.Mode.IsRegular() {
+		var file *versionedFile
+		if file, err = this.createFile(req.Name, int(req.Flags)); err == nil {
+			node = file
+			handle = file
+		}
 	} else {
-		file, err := this.createFile(req.Name, int(req.Flags))
-		if err != nil {
-			return nil, nil, err
-		}
-
-		return file, file, nil
+		err = errors.New("unsupported filetype")
 	}
+
+	return
 }
 
 func (this *versionedDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
-	if err := this.version(); err != nil {
-		return nil, err
-	}
-
 	return this.createDir(req.Name)
 }
 
