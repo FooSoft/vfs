@@ -27,6 +27,7 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
+	"sort"
 )
 
 //
@@ -35,7 +36,7 @@ import (
 
 type database struct {
 	base string
-	vers []*version
+	vers versionList
 }
 
 func newDatabase(dir string) (*database, error) {
@@ -75,14 +76,14 @@ func (this *database) save() error {
 	return nil
 }
 
-func (this *database) buildVersions(base string) ([]*version, error) {
+func (this *database) buildVersions(base string) (versionList, error) {
 	nodes, err := ioutil.ReadDir(base)
 	if err != nil {
 		return nil, err
 	}
 
-	var prev *version
-	var vers []*version
+	var parent *version
+	var vers versionList
 
 	for _, node := range nodes {
 		if !node.IsDir() {
@@ -94,15 +95,16 @@ func (this *database) buildVersions(base string) ([]*version, error) {
 			return nil, err
 		}
 
-		ver, err := newVersion(path.Join(base, node.Name()), timestamp, prev)
+		ver, err := newVersion(path.Join(base, node.Name()), timestamp, this, parent)
 		if err != nil {
 			return nil, err
 		}
 
 		vers = append(vers, ver)
-		prev = ver
+		parent = ver
 	}
 
+	sort.Sort(vers)
 	return vers, nil
 }
 

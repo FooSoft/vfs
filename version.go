@@ -46,9 +46,10 @@ type version struct {
 	timestamp time.Time
 	meta      *versionMetadata
 	root      *versionedDir
+	db        *database
 }
 
-func newVersion(base string, timestamp time.Time, parent *version) (*version, error) {
+func newVersion(base string, timestamp time.Time, db *database, parent *version) (*version, error) {
 	meta, err := newVersionMetadata(filepath.Join(base, "meta.json"))
 	if err != nil {
 		return nil, err
@@ -58,7 +59,8 @@ func newVersion(base string, timestamp time.Time, parent *version) (*version, er
 		base:      base,
 		parent:    parent,
 		timestamp: timestamp,
-		meta:      meta}
+		meta:      meta,
+		db:        db}
 
 	return ver, nil
 }
@@ -170,6 +172,20 @@ func (this *version) Root() (fs.Node, error) {
 //
 //	version helpers
 //
+
+type versionList []*version
+
+func (this versionList) Len() int {
+	return len(this)
+}
+
+func (this versionList) Swap(i, j int) {
+	this[i], this[j] = this[j], this[i]
+}
+
+func (this versionList) Less(i, j int) bool {
+	return this[i].timestamp.Unix() < this[j].timestamp.Unix()
+}
 
 func buildNewVersion(base string) error {
 	name := buildVerName(time.Now())

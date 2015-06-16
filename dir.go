@@ -26,6 +26,7 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"golang.org/x/net/context"
+	"log"
 	"os"
 	"path"
 )
@@ -40,6 +41,7 @@ type versionedDir struct {
 	node   *versionedNode
 	inode  uint64
 	parent *versionedDir
+	dirty  bool
 }
 
 func newVersionedDir(node *versionedNode, parent *versionedDir) *versionedDir {
@@ -48,7 +50,35 @@ func newVersionedDir(node *versionedNode, parent *versionedDir) *versionedDir {
 		files:  make(map[string]*versionedFile),
 		node:   node,
 		inode:  allocInode(),
-		parent: parent}
+		parent: parent,
+		dirty:  false}
+}
+
+func (this *versionedDir) version() error {
+	if this.dirty {
+		log.Printf("not dirty")
+		return nil
+	}
+
+	version := this.node.ver.db.lastVersion()
+	rebasedPath := version.rebasePath(this.node.path)
+
+	if err := os.MkdirAll(rebasedPath, 0755); err != nil {
+		log.Printf("cannot create directory %s", rebasedPath)
+		return err
+	}
+
+	node, err := newVersionedNode(this.node.path, version, this.node)
+	if err != nil {
+		log.Printf("cannot create versioned node for %s", rebasedPath)
+		return err
+	}
+
+	this.node = node
+	this.dirty = true
+
+	log.Printf("created directory for %s, %s", version.base, rebasedPath)
+	return nil
 }
 
 func (this *versionedDir) createDir(name string) (*versionedDir, error) {
@@ -109,6 +139,10 @@ func (this *versionedDir) Setattr(ctx context.Context, req *fuse.SetattrRequest,
 }
 
 func (this *versionedDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
+	if err := this.version(); err != nil {
+		return nil, nil, err
+	}
+
 	if req.Mode.IsDir() {
 		dir, err := this.createDir(req.Name)
 		if err != nil {
