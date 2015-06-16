@@ -32,7 +32,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -151,27 +150,12 @@ func (this *version) finalize() error {
 	return this.meta.save()
 }
 
-func (this *version) dump(root *versionedDir, depth int) {
-	indent := strings.Repeat("\t", depth)
-	for name, dir := range root.dirs {
-		fmt.Printf("%s+ %s [%s@%x]\n", indent, name, dir.node.path, this.timestamp.Unix())
-		this.dump(dir, depth+1)
-	}
-	for name, file := range root.files {
-		fmt.Printf("%s- %s [%s@%x]\n", indent, name, file.node.path, this.timestamp.Unix())
-	}
-}
-
-func (this *version) dumpRoot() {
-	this.dump(this.root, 0)
-}
-
 func (this *version) Root() (fs.Node, error) {
 	return this.root, nil
 }
 
 //
-//	version helpers
+// versionList
 //
 
 type versionList []*version
@@ -187,6 +171,10 @@ func (this versionList) Swap(i, j int) {
 func (this versionList) Less(i, j int) bool {
 	return this[i].timestamp.Unix() < this[j].timestamp.Unix()
 }
+
+//
+//	version helpers
+//
 
 func buildNewVersion(base string) error {
 	name := buildVerName(time.Now())

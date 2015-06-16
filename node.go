@@ -41,8 +41,6 @@ type versionedNode struct {
 	versioned bool
 }
 
-type versionedNodeMap map[string]*versionedNode
-
 func newVersionedNode(path string, ver *version, parent *versionedNode) (*versionedNode, error) {
 	info, err := os.Stat(ver.rebasePath(path))
 	if err != nil {
@@ -54,21 +52,6 @@ func newVersionedNode(path string, ver *version, parent *versionedNode) (*versio
 
 func newVersionedNodeStat(path string, ver *version, parent *versionedNode, info os.FileInfo) *versionedNode {
 	return &versionedNode{path, info, ver, parent, false}
-}
-
-func (this *versionedNode) remove() error {
-	ver := this.ver
-
-	if this.versioned {
-		if err := os.Remove(this.rebasedPath()); err != nil {
-			return err
-		}
-
-		ver = ver.parent
-	}
-
-	ver.removePath(this.path)
-	return nil
 }
 
 func (this *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
@@ -124,6 +107,21 @@ func (this *versionedNode) sync() error {
 	return nil
 }
 
+func (this *versionedNode) remove() error {
+	ver := this.ver
+
+	if this.versioned {
+		if err := os.Remove(this.rebasedPath()); err != nil {
+			return err
+		}
+
+		ver = ver.parent
+	}
+
+	ver.removePath(this.path)
+	return nil
+}
+
 func (this *versionedNode) rebasedPath() string {
 	return this.ver.rebasePath(this.path)
 }
@@ -156,3 +154,9 @@ func (this *versionedNode) attr(attr *fuse.Attr) {
 	attr.Gid, attr.Uid = this.owner()
 	attr.Rdev = uint32(stat.Rdev)
 }
+
+//
+// versionedNodeMap
+//
+
+type versionedNodeMap map[string]*versionedNode
