@@ -62,9 +62,10 @@ func (this *versionedFile) Open(ctx context.Context, req *fuse.OpenRequest, resp
 	return this, nil
 }
 
-func (this *versionedFile) Attr(attr *fuse.Attr) {
+func (this *versionedFile) Attr(ctx context.Context, attr *fuse.Attr) error {
 	this.node.attr(attr)
 	attr.Inode = this.inode
+	return nil
 }
 
 func (this *versionedFile) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
@@ -72,7 +73,7 @@ func (this *versionedFile) Getattr(ctx context.Context, req *fuse.GetattrRequest
 		return err
 	}
 
-	this.Attr(&resp.Attr)
+	this.Attr(ctx, &resp.Attr)
 	return nil
 }
 

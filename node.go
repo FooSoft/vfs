@@ -34,24 +34,25 @@ import (
 //
 
 type versionedNode struct {
-	path string
-	info os.FileInfo
-	ver  *version
+	path   string
+	info   os.FileInfo
+	ver    *version
+	parent *versionedNode
 }
 
 type versionedNodeMap map[string]*versionedNode
 
-func newVersionedNode(path string, ver *version) (*versionedNode, error) {
+func newVersionedNode(path string, ver *version, parent *versionedNode) (*versionedNode, error) {
 	info, err := os.Stat(ver.rebasePath(path))
 	if err != nil {
 		return nil, err
 	}
 
-	return newVersionedNodeStat(path, ver, info), nil
+	return newVersionedNodeStat(path, ver, parent, info), nil
 }
 
-func newVersionedNodeStat(path string, ver *version, info os.FileInfo) *versionedNode {
-	return &versionedNode{path, info, ver}
+func newVersionedNodeStat(path string, ver *version, parent *versionedNode, info os.FileInfo) *versionedNode {
+	return &versionedNode{path, info, ver, parent}
 }
 
 func (this *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
@@ -109,14 +110,6 @@ func (this *versionedNode) updateInfo() error {
 
 func (this *versionedNode) rebasedPath() string {
 	return this.ver.rebasePath(this.path)
-}
-
-func (this *versionedNode) rebasedTermPath() string {
-	if this.ver.last == nil {
-		return this.rebasedPath()
-	}
-
-	return this.ver.last.rebasePath(this.path)
 }
 
 func (this *versionedNode) owner() (gid, uid uint32) {

@@ -103,10 +103,6 @@ func (this *database) buildVersions(base string) ([]*version, error) {
 		prev = ver
 	}
 
-	for _, ver := range vers {
-		ver.last = vers[len(vers)-1]
-	}
-
 	return vers, nil
 }
 

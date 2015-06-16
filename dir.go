@@ -58,7 +58,7 @@ func (this *versionedDir) createDir(name string) (*versionedDir, error) {
 		return nil, err
 	}
 
-	node, err := newVersionedNode(childPath, this.node.ver)
+	node, err := newVersionedNode(childPath, this.node.ver, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (this *versionedDir) createFile(name string, flags int) (*versionedFile, er
 		return nil, err
 	}
 
-	node, err := newVersionedNode(childPath, this.node.ver)
+	node, err := newVersionedNode(childPath, this.node.ver, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -89,9 +89,10 @@ func (this *versionedDir) createFile(name string, flags int) (*versionedFile, er
 	return file, nil
 }
 
-func (this *versionedDir) Attr(attr *fuse.Attr) {
+func (this *versionedDir) Attr(ctx context.Context, attr *fuse.Attr) error {
 	this.node.attr(attr)
 	attr.Inode = this.inode
+	return nil
 }
 
 func (this *versionedDir) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
@@ -99,7 +100,7 @@ func (this *versionedDir) Getattr(ctx context.Context, req *fuse.GetattrRequest,
 		return err
 	}
 
-	this.Attr(&resp.Attr)
+	this.Attr(ctx, &resp.Attr)
 	return nil
 }
 
