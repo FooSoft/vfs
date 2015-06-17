@@ -102,7 +102,7 @@ func (this *versionedNode) remove() error {
 		ver = ver.parent
 	}
 
-	ver.removePath(this.path)
+	ver.meta.destroyPath(this.path)
 	return nil
 }
 

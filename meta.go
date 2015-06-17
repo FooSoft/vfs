@@ -36,6 +36,7 @@ import (
 type versionMetadata struct {
 	Deleted []string `json:"deleted"`
 	path    string
+	dirty   bool
 }
 
 func newVersionMetadata(path string) (*versionMetadata, error) {
@@ -57,7 +58,18 @@ func (this *versionMetadata) filter(nodes versionedNodeMap) {
 	}
 }
 
+func (this *versionMetadata) destroyPath(path string) {
+	this.Deleted = append(this.Deleted, path)
+	this.dirty = true
+}
+
+func (this *versionMetadata) createPath(path string) {
+	this.dirty = true
+}
+
 func (this *versionMetadata) load() error {
+	this.dirty = false
+
 	if _, err := os.Stat(this.path); os.IsNotExist(err) {
 		return nil
 	}
@@ -75,6 +87,10 @@ func (this *versionMetadata) load() error {
 }
 
 func (this *versionMetadata) save() error {
+	if !this.dirty {
+		return nil
+	}
+
 	js, err := json.Marshal(this)
 	if err != nil {
 		return err
