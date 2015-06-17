@@ -146,8 +146,16 @@ func (v *version) rebasePath(paths ...string) string {
 	return filepath.Join(combined...)
 }
 
-func (v *version) finalize() error {
-	return v.meta.save()
+func (v *version) finalize(last bool) error {
+	if v.meta.dirty {
+		return v.meta.save()
+	} else if last {
+		if err := os.RemoveAll(v.base); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (v *version) Root() (fs.Node, error) {

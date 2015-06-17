@@ -74,8 +74,10 @@ func (db *database) load(dir string) error {
 }
 
 func (db *database) save() error {
+	lastVer := db.lastVersion()
+
 	for _, ver := range db.vers {
-		if err := ver.finalize(); err != nil {
+		if err := ver.finalize(ver == lastVer); err != nil {
 			return err
 		}
 	}
