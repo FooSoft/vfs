@@ -33,84 +33,68 @@ import (
 //	versionedNode
 //
 
+const (
+	NodeFlagDir = 1 << iota
+	NodeFlagVer
+)
+
 type versionedNode struct {
-	path      string
-	info      os.FileInfo
-	ver       *version
-	parent    *versionedNode
-	versioned bool
+	path   string
+	ver    *version
+	parent *versionedNode
+	flags  int
 }
 
-func newVersionedNode(path string, ver *version, parent *versionedNode) (*versionedNode, error) {
-	info, err := os.Stat(ver.rebasePath(path))
-	if err != nil {
-		return nil, err
-	}
-
-	return newVersionedNodeStat(path, ver, parent, info), nil
-}
-
-func newVersionedNodeStat(path string, ver *version, parent *versionedNode, info os.FileInfo) *versionedNode {
-	return &versionedNode{path, info, ver, parent, false}
+func newVersionedNode(path string, ver *version, parent *versionedNode, flags int) *versionedNode {
+	return &versionedNode{path, ver, parent, flags}
 }
 
 func (this *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+	if err := this.attr(&resp.Attr); err != nil {
+		return err
+	}
+
 	if req.Valid&fuse.SetattrMode != 0 {
 		if err := os.Chmod(this.rebasedPath(), req.Mode); err != nil {
 			return err
 		}
+
+		resp.Attr.Mode = req.Mode
 	}
 
 	if setGid, setUid := req.Valid&fuse.SetattrGid != 0, req.Valid&fuse.SetattrUid != 0; setGid || setUid {
-		gid, uid := this.owner()
 		if setGid {
-			gid = req.Gid
+			resp.Attr.Gid = req.Gid
 		}
 		if setUid {
-			uid = req.Uid
+			resp.Attr.Uid = req.Uid
 		}
 
-		if err := os.Chown(this.rebasedPath(), int(uid), int(gid)); err != nil {
+		if err := os.Chown(this.rebasedPath(), int(resp.Attr.Uid), int(resp.Attr.Gid)); err != nil {
 			return err
 		}
 	}
 
 	if setAtime, setMtime := req.Valid&fuse.SetattrAtime != 0, req.Valid&fuse.SetattrMtime != 0; setAtime || setMtime {
-		atime, mtime, _ := this.times()
 		if setAtime {
-			atime = req.Atime
+			resp.Attr.Atime = req.Atime
 		}
 		if setMtime {
-			mtime = req.Mtime
+			resp.Attr.Mtime = req.Mtime
 		}
 
-		if err := os.Chtimes(this.rebasedPath(), atime, mtime); err != nil {
+		if err := os.Chtimes(this.rebasedPath(), resp.Attr.Atime, resp.Attr.Mtime); err != nil {
 			return err
 		}
 	}
 
-	if err := this.sync(); err != nil {
-		return err
-	}
-
-	this.attr(&resp.Attr)
-	return nil
-}
-
-func (this *versionedNode) sync() error {
-	info, err := os.Stat(this.rebasedPath())
-	if err != nil {
-		return err
-	}
-
-	this.info = info
 	return nil
 }
 
 func (this *versionedNode) remove() error {
 	ver := this.ver
 
-	if this.versioned {
+	if this.flags&NodeFlagVer == NodeFlagVer {
 		if err := os.Remove(this.rebasedPath()); err != nil {
 			return err
 		}
@@ -126,33 +110,36 @@ func (this *versionedNode) rebasedPath() string {
 	return this.ver.rebasePath(this.path)
 }
 
-func (this *versionedNode) owner() (gid, uid uint32) {
-	stat := this.info.Sys().(*syscall.Stat_t)
-
+func (this *versionedNode) owner(stat syscall.Stat_t) (gid, uid uint32) {
 	gid = stat.Gid
 	uid = stat.Uid
 	return
 }
 
-func (this *versionedNode) times() (atime, mtime, ctime time.Time) {
-	stat := this.info.Sys().(*syscall.Stat_t)
-
+func (this *versionedNode) times(stat syscall.Stat_t) (atime, mtime, ctime time.Time) {
 	atime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
-	mtime = this.info.ModTime()
+	mtime = time.Unix(int64(stat.Mtim.Sec), int64(stat.Mtim.Nsec))
 	ctime = time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
 	return
 }
 
-func (this *versionedNode) attr(attr *fuse.Attr) {
-	stat := this.info.Sys().(*syscall.Stat_t)
+func (this *versionedNode) attr(attr *fuse.Attr) error {
+	info, err := os.Stat(this.rebasedPath())
+	if err != nil {
+		return err
+	}
 
-	attr.Size = uint64(this.info.Size())
+	stat := info.Sys().(*syscall.Stat_t)
+
+	attr.Size = uint64(stat.Size)
 	attr.Blocks = uint64(stat.Blocks)
-	attr.Atime, attr.Mtime, attr.Ctime = this.times()
-	attr.Mode = this.info.Mode()
+	attr.Atime, attr.Mtime, attr.Ctime = this.times(*stat)
+	attr.Mode = info.Mode()
 	attr.Nlink = uint32(stat.Nlink)
-	attr.Gid, attr.Uid = this.owner()
+	attr.Gid, attr.Uid = this.owner(*stat)
 	attr.Rdev = uint32(stat.Rdev)
+
+	return nil
 }
 
 //

@@ -57,7 +57,7 @@ func (this *database) load(dir string) error {
 	}
 
 	if err := buildNewVersion(this.base); err != nil {
-		return nil
+		return err
 	}
 
 	this.vers, err = this.buildVersions(this.base)
@@ -109,10 +109,10 @@ func (this *database) buildVersions(base string) (versionList, error) {
 
 	sort.Sort(vers)
 
-	var parentVer *version
+	var parVer *version
 	for _, ver := range vers {
-		ver.parent = parentVer
-		parentVer = ver
+		ver.parent = parVer
+		parVer = ver
 	}
 
 	return vers, nil

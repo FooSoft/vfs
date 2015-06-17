@@ -79,9 +79,15 @@ func (this *version) scanDir(path string) (versionedNodeMap, error) {
 			}
 
 			for _, info := range infos {
+				childFlags := 0
+				if info.IsDir() {
+					childFlags |= NodeFlagDir
+				}
+
 				childName := info.Name()
 				childPath := filepath.Join(path, childName)
-				ownNodes[childName] = newVersionedNodeStat(childPath, this, nil, info)
+
+				ownNodes[childName] = newVersionedNode(childPath, this, nil, childFlags)
 			}
 		}
 
@@ -100,16 +106,16 @@ func (this *version) scanDir(path string) (versionedNodeMap, error) {
 	return baseNodes, nil
 }
 
-func (this *version) buildVerDir(dir *versionedDir) error {
+func (this *version) buildDir(dir *versionedDir) error {
 	nodes, err := this.scanDir(dir.node.path)
 	if err != nil {
 		return err
 	}
 
 	for name, node := range nodes {
-		if node.info.IsDir() {
+		if node.flags&NodeFlagDir == NodeFlagDir {
 			subDir := newVersionedDir(node, dir)
-			if err := this.buildVerDir(subDir); err != nil {
+			if err := this.buildDir(subDir); err != nil {
 				return err
 			}
 
@@ -123,13 +129,10 @@ func (this *version) buildVerDir(dir *versionedDir) error {
 }
 
 func (this *version) resolve() error {
-	node, err := newVersionedNode("/", this, nil)
-	if err != nil {
-		return err
-	}
-
+	node := newVersionedNode("/", this, nil, NodeFlagDir)
 	root := newVersionedDir(node, nil)
-	if err = this.buildVerDir(root); err != nil {
+
+	if err := this.buildDir(root); err != nil {
 		return err
 	}
 
@@ -178,11 +181,7 @@ func (this versionList) Less(i, j int) bool {
 
 func buildNewVersion(base string) error {
 	name := buildVerName(time.Now())
-
-	if err := os.Mkdir(path.Join(base, name), 0755); err != nil {
-		return err
-	}
-	if err := os.Mkdir(path.Join(base, name, "root"), 0755); err != nil {
+	if err := os.MkdirAll(path.Join(base, name, "root"), 0755); err != nil {
 		return err
 	}
 

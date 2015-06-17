@@ -47,23 +47,17 @@ func newVersionedFile(node *versionedNode, parent *versionedDir) *versionedFile 
 }
 
 func (this *versionedFile) version() error {
-	if this.node.versioned {
+	if this.node.flags&NodeFlagVer == NodeFlagVer {
 		return nil
 	}
 
-	version := this.node.ver.db.lastVersion()
-	if _, err := fileCopy(this.node.rebasedPath(), version.rebasePath(this.node.path)); err != nil {
+	node := newVersionedNode(this.node.path, this.node.ver.db.lastVersion(), this.node, NodeFlagVer)
+
+	if _, err := fileCopy(this.node.rebasedPath(), node.rebasedPath()); err != nil {
 		return err
 	}
 
-	node, err := newVersionedNode(this.node.path, version, this.node)
-	if err != nil {
-		return err
-	}
-
-	node.versioned = true
 	this.node = node
-
 	return nil
 }
 
@@ -94,12 +88,7 @@ func (this *versionedFile) Attr(ctx context.Context, attr *fuse.Attr) error {
 }
 
 func (this *versionedFile) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
-	if err := this.node.sync(); err != nil {
-		return err
-	}
-
-	this.Attr(ctx, &resp.Attr)
-	return nil
+	return this.Attr(ctx, &resp.Attr)
 }
 
 func (this *versionedFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
@@ -124,7 +113,12 @@ func (this *versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
 		return nil, errors.New("attempted to read from unopened file")
 	}
 
-	data := make([]byte, this.node.info.Size())
+	info, err := os.Stat(this.node.rebasedPath())
+	if err != nil {
+		return nil, err
+	}
+
+	data := make([]byte, info.Size())
 	if _, err := this.handle.Read(data); err != nil {
 		return nil, err
 	}

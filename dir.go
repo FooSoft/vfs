@@ -51,23 +51,17 @@ func newVersionedDir(node *versionedNode, parent *versionedDir) *versionedDir {
 }
 
 func (this *versionedDir) version() error {
-	if this.node.versioned {
+	if this.node.flags&NodeFlagVer == NodeFlagVer {
 		return nil
 	}
 
-	version := this.node.ver.db.lastVersion()
-	if err := os.MkdirAll(version.rebasePath(this.node.path), 0755); err != nil {
+	node := newVersionedNode(this.node.path, this.node.ver.db.lastVersion(), this.node, NodeFlagDir|NodeFlagVer)
+
+	if err := os.MkdirAll(node.rebasedPath(), 0755); err != nil {
 		return err
 	}
 
-	node, err := newVersionedNode(this.node.path, version, this.node)
-	if err != nil {
-		return err
-	}
-
-	node.versioned = true
 	this.node = node
-
 	return nil
 }
 
@@ -81,11 +75,7 @@ func (this *versionedDir) createDir(name string) (*versionedDir, error) {
 		return nil, err
 	}
 
-	node, err := newVersionedNode(childPath, this.node.ver, nil)
-	if err != nil {
-		return nil, err
-	}
-
+	node := newVersionedNode(childPath, this.node.ver, nil, NodeFlagDir)
 	dir := newVersionedDir(node, this)
 	this.dirs[name] = dir
 
@@ -103,11 +93,7 @@ func (this *versionedDir) createFile(name string, flags int) (*versionedFile, er
 		return nil, err
 	}
 
-	node, err := newVersionedNode(childPath, this.node.ver, nil)
-	if err != nil {
-		return nil, err
-	}
-
+	node := newVersionedNode(childPath, this.node.ver, nil, 0)
 	file := newVersionedFile(node, this)
 	file.handle = handle
 	this.files[name] = file
@@ -116,18 +102,16 @@ func (this *versionedDir) createFile(name string, flags int) (*versionedFile, er
 }
 
 func (this *versionedDir) Attr(ctx context.Context, attr *fuse.Attr) error {
-	this.node.attr(attr)
+	if err := this.node.attr(attr); err != nil {
+		return err
+	}
+
 	attr.Inode = this.inode
 	return nil
 }
 
 func (this *versionedDir) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
-	if err := this.node.sync(); err != nil {
-		return err
-	}
-
-	this.Attr(ctx, &resp.Attr)
-	return nil
+	return this.Attr(ctx, &resp.Attr)
 }
 
 func (this *versionedDir) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
