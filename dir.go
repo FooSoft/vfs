@@ -56,9 +56,7 @@ func (this *versionedDir) version() error {
 	}
 
 	version := this.node.ver.db.lastVersion()
-	rebasedPath := version.rebasePath(this.node.path)
-
-	if err := os.MkdirAll(rebasedPath, 0755); err != nil {
+	if err := os.MkdirAll(version.rebasePath(this.node.path), 0755); err != nil {
 		return err
 	}
 

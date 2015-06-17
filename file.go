@@ -27,6 +27,7 @@ import (
 	"bazil.org/fuse/fs"
 	"errors"
 	"golang.org/x/net/context"
+	"io"
 	"os"
 )
 
@@ -45,9 +46,36 @@ func newVersionedFile(node *versionedNode, parent *versionedDir) *versionedFile 
 	return &versionedFile{node, allocInode(), parent, nil}
 }
 
+func (this *versionedFile) version() error {
+	if this.node.versioned {
+		return nil
+	}
+
+	version := this.node.ver.db.lastVersion()
+	if _, err := fileCopy(this.node.rebasedPath(), version.rebasePath(this.node.path)); err != nil {
+		return err
+	}
+
+	node, err := newVersionedNode(this.node.path, version, this.node)
+	if err != nil {
+		return err
+	}
+
+	node.versioned = true
+	this.node = node
+
+	return nil
+}
+
 func (this *versionedFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
 	if this.handle != nil {
 		return nil, errors.New("attempted to open already opened file")
+	}
+
+	if !req.Flags.IsReadOnly() {
+		if err := this.version(); err != nil {
+			return nil, err
+		}
 	}
 
 	handle, err := os.OpenFile(this.node.rebasedPath(), int(req.Flags), 0644)
@@ -134,4 +162,24 @@ func (this *versionedFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) er
 	}
 
 	return this.handle.Sync()
+}
+
+//
+// file helpers
+//
+
+func fileCopy(src, dst string) (int64, error) {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return 0, err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return 0, err
+	}
+	defer dstFile.Close()
+
+	return io.Copy(srcFile, dstFile)
 }
