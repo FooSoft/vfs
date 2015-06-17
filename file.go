@@ -23,12 +23,13 @@
 package main
 
 import (
-	"bazil.org/fuse"
-	"bazil.org/fuse/fs"
 	"errors"
-	"golang.org/x/net/context"
 	"io"
 	"os"
+
+	"bazil.org/fuse"
+	"bazil.org/fuse/fs"
+	"golang.org/x/net/context"
 )
 
 //
@@ -57,7 +58,9 @@ func (this *versionedFile) version() error {
 		return err
 	}
 
+	node.ver.meta.modifyNode(node.path)
 	this.node = node
+
 	return nil
 }
 
@@ -147,6 +150,7 @@ func (this *versionedFile) Release(ctx context.Context, req *fuse.ReleaseRequest
 
 	this.handle.Close()
 	this.handle = nil
+
 	return nil
 }
 

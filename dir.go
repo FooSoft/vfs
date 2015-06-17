@@ -23,12 +23,13 @@
 package main
 
 import (
-	"bazil.org/fuse"
-	"bazil.org/fuse/fs"
 	"errors"
-	"golang.org/x/net/context"
 	"os"
 	"path"
+
+	"bazil.org/fuse"
+	"bazil.org/fuse/fs"
+	"golang.org/x/net/context"
 )
 
 //
@@ -61,7 +62,9 @@ func (this *versionedDir) version() error {
 		return err
 	}
 
+	node.ver.meta.modifyNode(node.path)
 	this.node = node
+
 	return nil
 }
 
@@ -79,6 +82,7 @@ func (this *versionedDir) createDir(name string) (*versionedDir, error) {
 	dir := newVersionedDir(node, this)
 	this.dirs[name] = dir
 
+	node.ver.meta.createNode(node.path)
 	return dir, nil
 }
 
@@ -98,6 +102,7 @@ func (this *versionedDir) createFile(name string, flags int) (*versionedFile, er
 	file.handle = handle
 	this.files[name] = file
 
+	node.ver.meta.createNode(node.path)
 	return file, nil
 }
 
@@ -143,18 +148,38 @@ func (this *versionedDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs
 	return this.createDir(req.Name)
 }
 
-func (this *versionedDir) Remove(ctx context.Context, req *fuse.RemoveRequest) (err error) {
+func (this *versionedDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	if req.Dir {
-		if err = this.dirs[req.Name].node.remove(); err == nil {
-			delete(this.dirs, req.Name)
+		node := this.dirs[req.Name].node
+		ver := node.ver
+
+		if node.flags&NodeFlagVer == NodeFlagVer {
+			if err := os.Remove(node.rebasedPath()); err != nil {
+				return err
+			}
+
+			ver = ver.parent
 		}
+
+		ver.meta.removeNode(node.path)
+		delete(this.dirs, req.Name)
 	} else {
-		if err = this.files[req.Name].node.remove(); err == nil {
-			delete(this.files, req.Name)
+		node := this.files[req.Name].node
+		ver := node.ver
+
+		if node.flags&NodeFlagVer == NodeFlagVer {
+			if err := os.Remove(node.rebasedPath()); err != nil {
+				return err
+			}
+
+			ver = ver.parent
 		}
+
+		ver.meta.removeNode(node.path)
+		delete(this.files, req.Name)
 	}
 
-	return
+	return nil
 }
 
 func (this *versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {

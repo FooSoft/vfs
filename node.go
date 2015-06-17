@@ -23,10 +23,11 @@
 package main
 
 import (
-	"bazil.org/fuse"
 	"os"
 	"syscall"
 	"time"
+
+	"bazil.org/fuse"
 )
 
 //
@@ -88,21 +89,6 @@ func (this *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrR
 		}
 	}
 
-	return nil
-}
-
-func (this *versionedNode) remove() error {
-	ver := this.ver
-
-	if this.flags&NodeFlagVer == NodeFlagVer {
-		if err := os.Remove(this.rebasedPath()); err != nil {
-			return err
-		}
-
-		ver = ver.parent
-	}
-
-	ver.meta.destroyPath(this.path)
 	return nil
 }
 

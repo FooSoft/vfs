@@ -58,12 +58,16 @@ func (this *versionMetadata) filter(nodes versionedNodeMap) {
 	}
 }
 
-func (this *versionMetadata) destroyPath(path string) {
+func (this *versionMetadata) removeNode(path string) {
 	this.Deleted = append(this.Deleted, path)
 	this.dirty = true
 }
 
-func (this *versionMetadata) createPath(path string) {
+func (this *versionMetadata) createNode(path string) {
+	this.dirty = true
+}
+
+func (this *versionMetadata) modifyNode(path string) {
 	this.dirty = true
 }
 
