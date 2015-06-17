@@ -22,7 +22,11 @@
 
 package main
 
-import "sync/atomic"
+import (
+	"io"
+	"os"
+	"sync/atomic"
+)
 
 //
 //	utilities
@@ -32,4 +36,20 @@ var inodeCnt uint64
 
 func allocInode() uint64 {
 	return atomic.AddUint64(&inodeCnt, 1)
+}
+
+func fileCopy(src, dst string) (int64, error) {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return 0, err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return 0, err
+	}
+	defer dstFile.Close()
+
+	return io.Copy(srcFile, dstFile)
 }

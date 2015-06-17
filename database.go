@@ -23,11 +23,12 @@
 package main
 
 import (
-	"bazil.org/fuse/fs"
 	"io/ioutil"
 	"path"
 	"path/filepath"
 	"sort"
+
+	"bazil.org/fuse/fs"
 )
 
 //
@@ -48,32 +49,32 @@ func newDatabase(dir string) (*database, error) {
 	return db, nil
 }
 
-func (this *database) load(dir string) error {
+func (db *database) load(dir string) error {
 	var err error
 
-	this.base, err = filepath.Abs(dir)
+	db.base, err = filepath.Abs(dir)
 	if err != nil {
 		return err
 	}
 
-	if err := buildNewVersion(this.base); err != nil {
+	if err := buildNewVersion(db.base); err != nil {
 		return err
 	}
 
-	this.vers, err = this.buildVersions(this.base)
+	db.vers, err = db.buildVersions(db.base)
 	if err != nil {
 		return err
 	}
 
-	if lastVer := this.lastVersion(); lastVer != nil {
+	if lastVer := db.lastVersion(); lastVer != nil {
 		return lastVer.resolve()
 	}
 
 	return nil
 }
 
-func (this *database) save() error {
-	for _, ver := range this.vers {
+func (db *database) save() error {
+	for _, ver := range db.vers {
 		if err := ver.finalize(); err != nil {
 			return err
 		}
@@ -82,7 +83,7 @@ func (this *database) save() error {
 	return nil
 }
 
-func (this *database) buildVersions(base string) (versionList, error) {
+func (db *database) buildVersions(base string) (versionList, error) {
 	nodes, err := ioutil.ReadDir(base)
 	if err != nil {
 		return nil, err
@@ -99,7 +100,7 @@ func (this *database) buildVersions(base string) (versionList, error) {
 			return nil, err
 		}
 
-		ver, err := newVersion(path.Join(base, node.Name()), timestamp, this)
+		ver, err := newVersion(path.Join(base, node.Name()), timestamp, db)
 		if err != nil {
 			return nil, err
 		}
@@ -118,15 +119,15 @@ func (this *database) buildVersions(base string) (versionList, error) {
 	return vers, nil
 }
 
-func (this *database) lastVersion() *version {
-	count := len(this.vers)
+func (db *database) lastVersion() *version {
+	count := len(db.vers)
 	if count == 0 {
 		return nil
 	}
 
-	return this.vers[count-1]
+	return db.vers[count-1]
 }
 
-func (this *database) Root() (fs.Node, error) {
-	return this.lastVersion().root, nil
+func (db *database) Root() (fs.Node, error) {
+	return db.lastVersion().root, nil
 }

@@ -24,7 +24,6 @@ package main
 
 import (
 	"errors"
-	"io"
 	"os"
 
 	"bazil.org/fuse"
@@ -47,94 +46,94 @@ func newVersionedFile(node *versionedNode, parent *versionedDir) *versionedFile 
 	return &versionedFile{node, allocInode(), parent, nil}
 }
 
-func (this *versionedFile) version() error {
-	if this.node.flags&NodeFlagVer == NodeFlagVer {
+func (vf *versionedFile) version() error {
+	if vf.node.flags&NodeFlagVer == NodeFlagVer {
 		return nil
 	}
 
-	node := newVersionedNode(this.node.path, this.node.ver.db.lastVersion(), this.node, NodeFlagVer)
+	node := newVersionedNode(vf.node.path, vf.node.ver.db.lastVersion(), vf.node, NodeFlagVer)
 
-	if _, err := fileCopy(this.node.rebasedPath(), node.rebasedPath()); err != nil {
+	if _, err := fileCopy(vf.node.rebasedPath(), node.rebasedPath()); err != nil {
 		return err
 	}
 
 	node.ver.meta.modifyNode(node.path)
-	this.node = node
+	vf.node = node
 
 	return nil
 }
 
-func (this *versionedFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
-	if this.handle != nil {
+func (vf *versionedFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+	if vf.handle != nil {
 		return nil, errors.New("attempted to open already opened file")
 	}
 
 	if !req.Flags.IsReadOnly() {
-		if err := this.version(); err != nil {
+		if err := vf.version(); err != nil {
 			return nil, err
 		}
 	}
 
-	handle, err := os.OpenFile(this.node.rebasedPath(), int(req.Flags), 0644)
+	handle, err := os.OpenFile(vf.node.rebasedPath(), int(req.Flags), 0644)
 	if err != nil {
 		return nil, err
 	}
 
-	this.handle = handle
-	return this, nil
+	vf.handle = handle
+	return vf, nil
 }
 
-func (this *versionedFile) Attr(ctx context.Context, attr *fuse.Attr) error {
-	this.node.attr(attr)
-	attr.Inode = this.inode
+func (vf *versionedFile) Attr(ctx context.Context, attr *fuse.Attr) error {
+	vf.node.attr(attr)
+	attr.Inode = vf.inode
 	return nil
 }
 
-func (this *versionedFile) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
-	return this.Attr(ctx, &resp.Attr)
+func (vf *versionedFile) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
+	return vf.Attr(ctx, &resp.Attr)
 }
 
-func (this *versionedFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
-	return this.node.setAttr(req, resp)
+func (vf *versionedFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+	return vf.node.setAttr(req, resp)
 }
 
-func (this *versionedFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
-	if this.handle == nil {
+func (vf *versionedFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+	if vf.handle == nil {
 		return errors.New("attempted to read from unopened file")
 	}
 
 	resp.Data = make([]byte, req.Size)
-	if _, err := this.handle.ReadAt(resp.Data, req.Offset); err != nil {
+	if _, err := vf.handle.ReadAt(resp.Data, req.Offset); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (this *versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
-	if this.handle == nil {
+func (vf *versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
+	if vf.handle == nil {
 		return nil, errors.New("attempted to read from unopened file")
 	}
 
-	info, err := os.Stat(this.node.rebasedPath())
+	info, err := os.Stat(vf.node.rebasedPath())
 	if err != nil {
 		return nil, err
 	}
 
 	data := make([]byte, info.Size())
-	if _, err := this.handle.Read(data); err != nil {
+	if _, err := vf.handle.Read(data); err != nil {
 		return nil, err
 	}
 
 	return data, nil
 }
 
-func (this *versionedFile) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
-	if this.handle == nil {
+func (vf *versionedFile) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
+	if vf.handle == nil {
 		return errors.New("attempted to write to unopened file")
 	}
 
-	size, err := this.handle.WriteAt(req.Data, req.Offset)
+	size, err := vf.handle.WriteAt(req.Data, req.Offset)
 	if err != nil {
 		return err
 	}
@@ -143,41 +142,21 @@ func (this *versionedFile) Write(ctx context.Context, req *fuse.WriteRequest, re
 	return nil
 }
 
-func (this *versionedFile) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
-	if this.handle == nil {
+func (vf *versionedFile) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
+	if vf.handle == nil {
 		return errors.New("attempted to release unopened file")
 	}
 
-	this.handle.Close()
-	this.handle = nil
+	vf.handle.Close()
+	vf.handle = nil
 
 	return nil
 }
 
-func (this *versionedFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
-	if this.handle == nil {
+func (vf *versionedFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
+	if vf.handle == nil {
 		return errors.New("attempted to sync unopened file")
 	}
 
-	return this.handle.Sync()
-}
-
-//
-// file helpers
-//
-
-func fileCopy(src, dst string) (int64, error) {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return 0, err
-	}
-	defer srcFile.Close()
-
-	dstFile, err := os.Create(dst)
-	if err != nil {
-		return 0, err
-	}
-	defer dstFile.Close()
-
-	return io.Copy(srcFile, dstFile)
+	return vf.handle.Sync()
 }

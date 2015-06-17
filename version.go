@@ -23,7 +23,6 @@
 package main
 
 import (
-	"bazil.org/fuse/fs"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -33,6 +32,8 @@ import (
 	"regexp"
 	"strconv"
 	"time"
+
+	"bazil.org/fuse/fs"
 )
 
 //
@@ -57,22 +58,22 @@ func newVersion(base string, timestamp time.Time, db *database) (*version, error
 	return &version{base, nil, timestamp, meta, nil, db}, nil
 }
 
-func (this *version) scanDir(path string) (versionedNodeMap, error) {
+func (v *version) scanDir(path string) (versionedNodeMap, error) {
 	var baseNodes versionedNodeMap
-	if this.parent != nil {
+	if v.parent != nil {
 		var err error
 
-		baseNodes, err = this.parent.scanDir(path)
+		baseNodes, err = v.parent.scanDir(path)
 		if err != nil {
 			return nil, err
 		}
 
-		this.meta.filter(baseNodes)
+		v.meta.filter(baseNodes)
 	}
 
 	ownNodes := make(versionedNodeMap)
 	{
-		infos, err := ioutil.ReadDir(this.rebasePath(path))
+		infos, err := ioutil.ReadDir(v.rebasePath(path))
 		if !os.IsNotExist(err) {
 			if err != nil {
 				return nil, err
@@ -87,11 +88,11 @@ func (this *version) scanDir(path string) (versionedNodeMap, error) {
 				childName := info.Name()
 				childPath := filepath.Join(path, childName)
 
-				ownNodes[childName] = newVersionedNode(childPath, this, nil, childFlags)
+				ownNodes[childName] = newVersionedNode(childPath, v, nil, childFlags)
 			}
 		}
 
-		this.meta.filter(ownNodes)
+		v.meta.filter(ownNodes)
 	}
 
 	if baseNodes == nil {
@@ -106,8 +107,8 @@ func (this *version) scanDir(path string) (versionedNodeMap, error) {
 	return baseNodes, nil
 }
 
-func (this *version) buildDir(dir *versionedDir) error {
-	nodes, err := this.scanDir(dir.node.path)
+func (v *version) buildDir(dir *versionedDir) error {
+	nodes, err := v.scanDir(dir.node.path)
 	if err != nil {
 		return err
 	}
@@ -115,7 +116,7 @@ func (this *version) buildDir(dir *versionedDir) error {
 	for name, node := range nodes {
 		if node.flags&NodeFlagDir == NodeFlagDir {
 			subDir := newVersionedDir(node, dir)
-			if err := this.buildDir(subDir); err != nil {
+			if err := v.buildDir(subDir); err != nil {
 				return err
 			}
 
@@ -128,29 +129,29 @@ func (this *version) buildDir(dir *versionedDir) error {
 	return nil
 }
 
-func (this *version) resolve() error {
-	node := newVersionedNode("/", this, nil, NodeFlagDir)
+func (v *version) resolve() error {
+	node := newVersionedNode("/", v, nil, NodeFlagDir)
 	root := newVersionedDir(node, nil)
 
-	if err := this.buildDir(root); err != nil {
+	if err := v.buildDir(root); err != nil {
 		return err
 	}
 
-	this.root = root
+	v.root = root
 	return nil
 }
 
-func (this *version) rebasePath(paths ...string) string {
-	combined := append([]string{this.base, "root"}, paths...)
+func (v *version) rebasePath(paths ...string) string {
+	combined := append([]string{v.base, "root"}, paths...)
 	return filepath.Join(combined...)
 }
 
-func (this *version) finalize() error {
-	return this.meta.save()
+func (v *version) finalize() error {
+	return v.meta.save()
 }
 
-func (this *version) Root() (fs.Node, error) {
-	return this.root, nil
+func (v *version) Root() (fs.Node, error) {
+	return v.root, nil
 }
 
 //
@@ -159,16 +160,16 @@ func (this *version) Root() (fs.Node, error) {
 
 type versionList []*version
 
-func (this versionList) Len() int {
-	return len(this)
+func (v versionList) Len() int {
+	return len(v)
 }
 
-func (this versionList) Swap(i, j int) {
-	this[i], this[j] = this[j], this[i]
+func (v versionList) Swap(i, j int) {
+	v[i], v[j] = v[j], v[i]
 }
 
-func (this versionList) Less(i, j int) bool {
-	return this[i].timestamp.Unix() < this[j].timestamp.Unix()
+func (v versionList) Less(i, j int) bool {
+	return v[i].timestamp.Unix() < v[j].timestamp.Unix()
 }
 
 //

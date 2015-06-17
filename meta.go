@@ -48,8 +48,8 @@ func newVersionMetadata(path string) (*versionMetadata, error) {
 	return meta, nil
 }
 
-func (this *versionMetadata) filter(nodes versionedNodeMap) {
-	for _, delPath := range this.Deleted {
+func (m *versionMetadata) filter(nodes versionedNodeMap) {
+	for _, delPath := range m.Deleted {
 		for name, node := range nodes {
 			if strings.HasPrefix(node.path, delPath) {
 				delete(nodes, name)
@@ -58,47 +58,47 @@ func (this *versionMetadata) filter(nodes versionedNodeMap) {
 	}
 }
 
-func (this *versionMetadata) removeNode(path string) {
-	this.Deleted = append(this.Deleted, path)
-	this.dirty = true
+func (m *versionMetadata) removeNode(path string) {
+	m.Deleted = append(m.Deleted, path)
+	m.dirty = true
 }
 
-func (this *versionMetadata) createNode(path string) {
-	this.dirty = true
+func (m *versionMetadata) createNode(path string) {
+	m.dirty = true
 }
 
-func (this *versionMetadata) modifyNode(path string) {
-	this.dirty = true
+func (m *versionMetadata) modifyNode(path string) {
+	m.dirty = true
 }
 
-func (this *versionMetadata) load() error {
-	this.dirty = false
+func (m *versionMetadata) load() error {
+	m.dirty = false
 
-	if _, err := os.Stat(this.path); os.IsNotExist(err) {
+	if _, err := os.Stat(m.path); os.IsNotExist(err) {
 		return nil
 	}
 
-	bytes, err := ioutil.ReadFile(this.path)
+	bytes, err := ioutil.ReadFile(m.path)
 	if err != nil {
 		return err
 	}
 
-	if err := json.Unmarshal(bytes, &this); err != nil {
+	if err := json.Unmarshal(bytes, &m); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (this *versionMetadata) save() error {
-	if !this.dirty {
+func (m *versionMetadata) save() error {
+	if !m.dirty {
 		return nil
 	}
 
-	js, err := json.Marshal(this)
+	js, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
 
-	return ioutil.WriteFile(this.path, js, 0644)
+	return ioutil.WriteFile(m.path, js, 0644)
 }

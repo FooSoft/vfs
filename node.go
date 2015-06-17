@@ -50,13 +50,13 @@ func newVersionedNode(path string, ver *version, parent *versionedNode, flags in
 	return &versionedNode{path, ver, parent, flags}
 }
 
-func (this *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
-	if err := this.attr(&resp.Attr); err != nil {
+func (n *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+	if err := n.attr(&resp.Attr); err != nil {
 		return err
 	}
 
 	if req.Valid&fuse.SetattrMode != 0 {
-		if err := os.Chmod(this.rebasedPath(), req.Mode); err != nil {
+		if err := os.Chmod(n.rebasedPath(), req.Mode); err != nil {
 			return err
 		}
 
@@ -71,7 +71,7 @@ func (this *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrR
 			resp.Attr.Uid = req.Uid
 		}
 
-		if err := os.Chown(this.rebasedPath(), int(resp.Attr.Uid), int(resp.Attr.Gid)); err != nil {
+		if err := os.Chown(n.rebasedPath(), int(resp.Attr.Uid), int(resp.Attr.Gid)); err != nil {
 			return err
 		}
 	}
@@ -84,7 +84,7 @@ func (this *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrR
 			resp.Attr.Mtime = req.Mtime
 		}
 
-		if err := os.Chtimes(this.rebasedPath(), resp.Attr.Atime, resp.Attr.Mtime); err != nil {
+		if err := os.Chtimes(n.rebasedPath(), resp.Attr.Atime, resp.Attr.Mtime); err != nil {
 			return err
 		}
 	}
@@ -92,25 +92,25 @@ func (this *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrR
 	return nil
 }
 
-func (this *versionedNode) rebasedPath() string {
-	return this.ver.rebasePath(this.path)
+func (n *versionedNode) rebasedPath() string {
+	return n.ver.rebasePath(n.path)
 }
 
-func (this *versionedNode) owner(stat syscall.Stat_t) (gid, uid uint32) {
+func (n *versionedNode) owner(stat syscall.Stat_t) (gid, uid uint32) {
 	gid = stat.Gid
 	uid = stat.Uid
 	return
 }
 
-func (this *versionedNode) times(stat syscall.Stat_t) (atime, mtime, ctime time.Time) {
+func (n *versionedNode) times(stat syscall.Stat_t) (atime, mtime, ctime time.Time) {
 	atime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
 	mtime = time.Unix(int64(stat.Mtim.Sec), int64(stat.Mtim.Nsec))
 	ctime = time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
 	return
 }
 
-func (this *versionedNode) attr(attr *fuse.Attr) error {
-	info, err := os.Stat(this.rebasedPath())
+func (n *versionedNode) attr(attr *fuse.Attr) error {
+	info, err := os.Stat(n.rebasedPath())
 	if err != nil {
 		return err
 	}
@@ -119,10 +119,10 @@ func (this *versionedNode) attr(attr *fuse.Attr) error {
 
 	attr.Size = uint64(stat.Size)
 	attr.Blocks = uint64(stat.Blocks)
-	attr.Atime, attr.Mtime, attr.Ctime = this.times(*stat)
+	attr.Atime, attr.Mtime, attr.Ctime = n.times(*stat)
 	attr.Mode = info.Mode()
 	attr.Nlink = uint32(stat.Nlink)
-	attr.Gid, attr.Uid = this.owner(*stat)
+	attr.Gid, attr.Uid = n.owner(*stat)
 	attr.Rdev = uint32(stat.Rdev)
 
 	return nil
