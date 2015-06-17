@@ -78,7 +78,7 @@ func (vd *versionedDir) createDir(name string) (*versionedDir, error) {
 		return nil, err
 	}
 
-	node := newVersionedNode(childPath, vd.node.ver, nil, NodeFlagDir)
+	node := newVersionedNode(childPath, vd.node.ver, nil, NodeFlagDir|NodeFlagVer)
 	dir := newVersionedDir(node, vd)
 	vd.dirs[name] = dir
 
@@ -97,7 +97,7 @@ func (vd *versionedDir) createFile(name string, flags int) (*versionedFile, erro
 		return nil, err
 	}
 
-	node := newVersionedNode(childPath, vd.node.ver, nil, 0)
+	node := newVersionedNode(childPath, vd.node.ver, nil, NodeFlagVer)
 	file := newVersionedFile(node, vd)
 	file.handle = handle
 	vd.files[name] = file
