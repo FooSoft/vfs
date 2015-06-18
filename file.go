@@ -63,6 +63,24 @@ func (vf *versionedFile) version() error {
 	return nil
 }
 
+// Node
+func (vf *versionedFile) Attr(ctx context.Context, attr *fuse.Attr) error {
+	vf.node.attr(attr)
+	attr.Inode = vf.inode
+	return nil
+}
+
+// NodeGetattrer
+func (vf *versionedFile) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
+	return vf.Attr(ctx, &resp.Attr)
+}
+
+// NodeSetattrer
+func (vf *versionedFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+	return vf.node.setAttr(req, resp)
+}
+
+// NodeOpener
 func (vf *versionedFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
 	if vf.handle != nil {
 		return nil, errors.New("attempted to open already opened file")
@@ -83,20 +101,28 @@ func (vf *versionedFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *
 	return vf, nil
 }
 
-func (vf *versionedFile) Attr(ctx context.Context, attr *fuse.Attr) error {
-	vf.node.attr(attr)
-	attr.Inode = vf.inode
+// HandleReleaser
+func (vf *versionedFile) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
+	if vf.handle == nil {
+		return errors.New("attempted to release unopened file")
+	}
+
+	vf.handle.Close()
+	vf.handle = nil
+
 	return nil
 }
 
-func (vf *versionedFile) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
-	return vf.Attr(ctx, &resp.Attr)
+// NodeFsyncer
+func (vf *versionedFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
+	if vf.handle == nil {
+		return errors.New("attempted to sync unopened file")
+	}
+
+	return vf.handle.Sync()
 }
 
-func (vf *versionedFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
-	return vf.node.setAttr(req, resp)
-}
-
+// HandleReader
 func (vf *versionedFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	if vf.handle == nil {
 		return errors.New("attempted to read from unopened file")
@@ -110,6 +136,7 @@ func (vf *versionedFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *
 	return nil
 }
 
+// HandleReadAller
 func (vf *versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
 	if vf.handle == nil {
 		return nil, errors.New("attempted to read from unopened file")
@@ -128,6 +155,7 @@ func (vf *versionedFile) ReadAll(ctx context.Context) ([]byte, error) {
 	return data, nil
 }
 
+// HandleWriter
 func (vf *versionedFile) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
 	if vf.handle == nil {
 		return errors.New("attempted to write to unopened file")
@@ -140,23 +168,4 @@ func (vf *versionedFile) Write(ctx context.Context, req *fuse.WriteRequest, resp
 
 	resp.Size = size
 	return nil
-}
-
-func (vf *versionedFile) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
-	if vf.handle == nil {
-		return errors.New("attempted to release unopened file")
-	}
-
-	vf.handle.Close()
-	vf.handle = nil
-
-	return nil
-}
-
-func (vf *versionedFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
-	if vf.handle == nil {
-		return errors.New("attempted to sync unopened file")
-	}
-
-	return vf.handle.Sync()
 }
