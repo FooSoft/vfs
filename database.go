@@ -130,6 +130,7 @@ func (db *database) lastVersion() *version {
 	return db.vers[count-1]
 }
 
+// FS
 func (db *database) Root() (fs.Node, error) {
 	return db.lastVersion().root, nil
 }

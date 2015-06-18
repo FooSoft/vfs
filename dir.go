@@ -106,6 +106,7 @@ func (vd *versionedDir) createFile(name string, flags int) (*versionedFile, erro
 	return file, nil
 }
 
+// Node
 func (vd *versionedDir) Attr(ctx context.Context, attr *fuse.Attr) error {
 	if err := vd.node.attr(attr); err != nil {
 		return err
@@ -115,15 +116,18 @@ func (vd *versionedDir) Attr(ctx context.Context, attr *fuse.Attr) error {
 	return nil
 }
 
+// NodeGetattrer
 func (vd *versionedDir) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
 	return vd.Attr(ctx, &resp.Attr)
 }
 
+// NodeSetattrer
 func (vd *versionedDir) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
 	vd.version()
 	return vd.node.setAttr(req, resp)
 }
 
+// NodeCreater
 func (vd *versionedDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (node fs.Node, handle fs.Handle, err error) {
 	if req.Mode.IsDir() {
 		var dir *versionedDir
@@ -144,10 +148,12 @@ func (vd *versionedDir) Create(ctx context.Context, req *fuse.CreateRequest, res
 	return
 }
 
+// NodeMkdirer
 func (vd *versionedDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
 	return vd.createDir(req.Name)
 }
 
+// NodeRemover
 func (vd *versionedDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	if req.Dir {
 		node := vd.dirs[req.Name].node
@@ -182,6 +188,20 @@ func (vd *versionedDir) Remove(ctx context.Context, req *fuse.RemoveRequest) err
 	return nil
 }
 
+// NodeRequestLookuper
+func (vd *versionedDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	if dir, ok := vd.dirs[name]; ok {
+		return dir, nil
+	}
+
+	if file, ok := vd.files[name]; ok {
+		return file, nil
+	}
+
+	return nil, fuse.ENOENT
+}
+
+// HandleReadDirAller
 func (vd *versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	entries := []fuse.Dirent{{Inode: vd.inode, Name: ".", Type: fuse.DT_Dir}}
 	if vd.parent != nil {
@@ -200,16 +220,4 @@ func (vd *versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	}
 
 	return entries, nil
-}
-
-func (vd *versionedDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	if dir, ok := vd.dirs[name]; ok {
-		return dir, nil
-	}
-
-	if file, ok := vd.files[name]; ok {
-		return file, nil
-	}
-
-	return nil, fuse.ENOENT
 }
