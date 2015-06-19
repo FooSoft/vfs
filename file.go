@@ -62,14 +62,15 @@ func (vf *verFile) version() error {
 	return nil
 }
 
-func (vf *verFile) open(flags fuse.OpenFlags) (*verFileHandle, error) {
-	if !flags.IsReadOnly() {
+func (vf *verFile) open(flags fuse.OpenFlags, create bool) (*verFileHandle, error) {
+	if !create && !flags.IsReadOnly() {
 		if err := vf.version(); err != nil {
 			return nil, err
 		}
 	}
 
 	path := vf.node.rebasedPath()
+
 	handle, err := os.OpenFile(path, int(flags), 0644)
 	if err != nil {
 		return nil, err
@@ -105,7 +106,7 @@ func (vf *verFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *
 
 // NodeOpener
 func (vf *verFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
-	handle, err := vf.open(req.Flags)
+	handle, err := vf.open(req.Flags, false)
 	if err != nil {
 		return nil, err
 	}
