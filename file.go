@@ -23,7 +23,6 @@
 package main
 
 import (
-	"errors"
 	"os"
 
 	"bazil.org/fuse"
@@ -36,14 +35,14 @@ import (
 //
 
 type verFile struct {
-	node   *verNode
-	inode  uint64
-	parent *verDir
-	handle *os.File
+	node    *verNode
+	inode   uint64
+	parent  *verDir
+	handles map[fuse.HandleID]*verFileHandle
 }
 
 func newVerFile(node *verNode, parent *verDir) *verFile {
-	return &verFile{node, allocInode(), parent, nil}
+	return &verFile{node, allocInode(), parent, make(map[fuse.HandleID]*verFileHandle)}
 }
 
 func (vf *verFile) version() error {
@@ -61,6 +60,30 @@ func (vf *verFile) version() error {
 	vf.node = node
 
 	return nil
+}
+
+func (vf *verFile) open(flags fuse.OpenFlags) (*verFileHandle, error) {
+	if !flags.IsReadOnly() {
+		if err := vf.version(); err != nil {
+			return nil, err
+		}
+	}
+
+	path := vf.node.rebasedPath()
+	handle, err := os.OpenFile(path, int(flags), 0644)
+	if err != nil {
+		return nil, err
+	}
+
+	id := fuse.HandleID(allocHandleId())
+	verHandle := &verFileHandle{vf, path, handle, id}
+	vf.handles[id] = verHandle
+
+	return verHandle, nil
+}
+
+func (vf *verFile) release(handle fuse.HandleID) {
+	delete(vf.handles, handle)
 }
 
 // Node
@@ -82,54 +105,41 @@ func (vf *verFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *
 
 // NodeOpener
 func (vf *verFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
-	if vf.handle != nil {
-		return nil, errors.New("attempted to open already opened file")
-	}
-
-	if !req.Flags.IsReadOnly() {
-		if err := vf.version(); err != nil {
-			return nil, err
-		}
-	}
-
-	handle, err := os.OpenFile(vf.node.rebasedPath(), int(req.Flags), 0644)
+	handle, err := vf.open(req.Flags)
 	if err != nil {
 		return nil, err
 	}
 
-	vf.handle = handle
-	return vf, nil
-}
-
-// HandleReleaser
-func (vf *verFile) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
-	if vf.handle == nil {
-		return errors.New("attempted to release unopened file")
-	}
-
-	vf.handle.Close()
-	vf.handle = nil
-
-	return nil
+	resp.Handle = handle.id
+	return handle, nil
 }
 
 // NodeFsyncer
 func (vf *verFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
-	if vf.handle == nil {
-		return errors.New("attempted to sync unopened file")
+	for _, vfh := range vf.handles {
+		if err := vfh.handle.Sync(); err != nil {
+			return err
+		}
 	}
 
-	return vf.handle.Sync()
+	return nil
+}
+
+//
+// verFileHandle
+//
+
+type verFileHandle struct {
+	node   *verFile
+	path   string
+	handle *os.File
+	id     fuse.HandleID
 }
 
 // HandleReader
-func (vf *verFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
-	if vf.handle == nil {
-		return errors.New("attempted to read from unopened file")
-	}
-
+func (vfh *verFileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	resp.Data = make([]byte, req.Size)
-	if _, err := vf.handle.ReadAt(resp.Data, req.Offset); err != nil {
+	if _, err := vfh.handle.ReadAt(resp.Data, req.Offset); err != nil {
 		return err
 	}
 
@@ -137,18 +147,14 @@ func (vf *verFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.R
 }
 
 // HandleReadAller
-func (vf *verFile) ReadAll(ctx context.Context) ([]byte, error) {
-	if vf.handle == nil {
-		return nil, errors.New("attempted to read from unopened file")
-	}
-
-	info, err := os.Stat(vf.node.rebasedPath())
+func (vfh *verFileHandle) ReadAll(ctx context.Context) ([]byte, error) {
+	info, err := os.Stat(vfh.path)
 	if err != nil {
 		return nil, err
 	}
 
 	data := make([]byte, info.Size())
-	if _, err := vf.handle.Read(data); err != nil {
+	if _, err := vfh.handle.Read(data); err != nil {
 		return nil, err
 	}
 
@@ -156,16 +162,21 @@ func (vf *verFile) ReadAll(ctx context.Context) ([]byte, error) {
 }
 
 // HandleWriter
-func (vf *verFile) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
-	if vf.handle == nil {
-		return errors.New("attempted to write to unopened file")
-	}
-
-	size, err := vf.handle.WriteAt(req.Data, req.Offset)
+func (vfh *verFileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
+	size, err := vfh.handle.WriteAt(req.Data, req.Offset)
 	if err != nil {
 		return err
 	}
 
 	resp.Size = size
+	return nil
+}
+
+// HandleReleaser
+func (vfh *verFileHandle) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
+	vfh.handle.Close()
+	vfh.handle = nil
+
+	vfh.node.release(req.Handle)
 	return nil
 }

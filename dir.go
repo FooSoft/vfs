@@ -81,29 +81,29 @@ func (vd *verDir) createDir(name string) (*verDir, error) {
 	node := newVerNode(childPath, vd.node.ver, nil, NodeFlagDir|NodeFlagVer)
 	dir := newVerDir(node, vd)
 	vd.dirs[name] = dir
-
 	node.ver.meta.createNode(node.path)
+
 	return dir, nil
 }
 
-func (vd *verDir) createFile(name string, flags int) (*verFile, error) {
+func (vd *verDir) createFile(name string, flags fuse.OpenFlags) (*verFile, *verFileHandle, error) {
 	if err := vd.version(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	childPath := path.Join(vd.node.path, name)
-	handle, err := os.OpenFile(vd.node.ver.rebasePath(childPath), flags, 0644)
-	if err != nil {
-		return nil, err
-	}
-
 	node := newVerNode(childPath, vd.node.ver, nil, NodeFlagVer)
 	file := newVerFile(node, vd)
-	file.handle = handle
-	vd.files[name] = file
 
+	handle, err := file.open(flags)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	vd.files[name] = file
 	node.ver.meta.createNode(node.path)
-	return file, nil
+
+	return file, handle, nil
 }
 
 // Node
@@ -137,9 +137,11 @@ func (vd *verDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fus
 		}
 	} else if req.Mode.IsRegular() {
 		var file *verFile
-		if file, err = vd.createFile(req.Name, int(req.Flags)); err == nil {
+		var vfh *verFileHandle
+		if file, vfh, err = vd.createFile(req.Name, req.Flags); err == nil {
 			node = file
-			handle = file
+			handle = handle
+			resp.Handle = vfh.id
 		}
 	} else {
 		err = errors.New("unsupported filetype")

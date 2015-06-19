@@ -32,12 +32,18 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"bazil.org/fuse"
 )
 
-var inodeCnt uint64
+var inodeCnt, handleCnt uint64
 
 func allocInode() uint64 {
 	return atomic.AddUint64(&inodeCnt, 1)
+}
+
+func allocHandleId() fuse.HandleID {
+	return fuse.HandleID(atomic.AddUint64(&handleCnt, 1))
 }
 
 func copyFile(src, dst string) (int64, error) {
