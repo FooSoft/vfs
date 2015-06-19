@@ -33,30 +33,30 @@ import (
 )
 
 //
-//	versionedDir
+//	verDir
 //
 
-type versionedDir struct {
-	dirs   map[string]*versionedDir
-	files  map[string]*versionedFile
-	node   *versionedNode
+type verDir struct {
+	dirs   map[string]*verDir
+	files  map[string]*verFile
+	node   *verNode
 	inode  uint64
-	parent *versionedDir
+	parent *verDir
 }
 
-func newVersionedDir(node *versionedNode, parent *versionedDir) *versionedDir {
-	dirs := make(map[string]*versionedDir)
-	files := make(map[string]*versionedFile)
+func newVerDir(node *verNode, parent *verDir) *verDir {
+	dirs := make(map[string]*verDir)
+	files := make(map[string]*verFile)
 
-	return &versionedDir{dirs, files, node, allocInode(), parent}
+	return &verDir{dirs, files, node, allocInode(), parent}
 }
 
-func (vd *versionedDir) version() error {
+func (vd *verDir) version() error {
 	if vd.node.flags&NodeFlagVer == NodeFlagVer {
 		return nil
 	}
 
-	node := newVersionedNode(vd.node.path, vd.node.ver.db.lastVersion(), vd.node, NodeFlagDir|NodeFlagVer)
+	node := newVerNode(vd.node.path, vd.node.ver.db.lastVersion(), vd.node, NodeFlagDir|NodeFlagVer)
 
 	if err := os.MkdirAll(node.rebasedPath(), 0755); err != nil {
 		return err
@@ -68,7 +68,7 @@ func (vd *versionedDir) version() error {
 	return nil
 }
 
-func (vd *versionedDir) createDir(name string) (*versionedDir, error) {
+func (vd *verDir) createDir(name string) (*verDir, error) {
 	if err := vd.version(); err != nil {
 		return nil, err
 	}
@@ -78,15 +78,15 @@ func (vd *versionedDir) createDir(name string) (*versionedDir, error) {
 		return nil, err
 	}
 
-	node := newVersionedNode(childPath, vd.node.ver, nil, NodeFlagDir|NodeFlagVer)
-	dir := newVersionedDir(node, vd)
+	node := newVerNode(childPath, vd.node.ver, nil, NodeFlagDir|NodeFlagVer)
+	dir := newVerDir(node, vd)
 	vd.dirs[name] = dir
 
 	node.ver.meta.createNode(node.path)
 	return dir, nil
 }
 
-func (vd *versionedDir) createFile(name string, flags int) (*versionedFile, error) {
+func (vd *verDir) createFile(name string, flags int) (*verFile, error) {
 	if err := vd.version(); err != nil {
 		return nil, err
 	}
@@ -97,8 +97,8 @@ func (vd *versionedDir) createFile(name string, flags int) (*versionedFile, erro
 		return nil, err
 	}
 
-	node := newVersionedNode(childPath, vd.node.ver, nil, NodeFlagVer)
-	file := newVersionedFile(node, vd)
+	node := newVerNode(childPath, vd.node.ver, nil, NodeFlagVer)
+	file := newVerFile(node, vd)
 	file.handle = handle
 	vd.files[name] = file
 
@@ -107,7 +107,7 @@ func (vd *versionedDir) createFile(name string, flags int) (*versionedFile, erro
 }
 
 // Node
-func (vd *versionedDir) Attr(ctx context.Context, attr *fuse.Attr) error {
+func (vd *verDir) Attr(ctx context.Context, attr *fuse.Attr) error {
 	if err := vd.node.attr(attr); err != nil {
 		return err
 	}
@@ -117,26 +117,26 @@ func (vd *versionedDir) Attr(ctx context.Context, attr *fuse.Attr) error {
 }
 
 // NodeGetattrer
-func (vd *versionedDir) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
+func (vd *verDir) Getattr(ctx context.Context, req *fuse.GetattrRequest, resp *fuse.GetattrResponse) error {
 	return vd.Attr(ctx, &resp.Attr)
 }
 
 // NodeSetattrer
-func (vd *versionedDir) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+func (vd *verDir) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
 	vd.version()
 	return vd.node.setAttr(req, resp)
 }
 
 // NodeCreater
-func (vd *versionedDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (node fs.Node, handle fs.Handle, err error) {
+func (vd *verDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (node fs.Node, handle fs.Handle, err error) {
 	if req.Mode.IsDir() {
-		var dir *versionedDir
+		var dir *verDir
 		if dir, err = vd.createDir(req.Name); err == nil {
 			node = dir
 			handle = dir
 		}
 	} else if req.Mode.IsRegular() {
-		var file *versionedFile
+		var file *verFile
 		if file, err = vd.createFile(req.Name, int(req.Flags)); err == nil {
 			node = file
 			handle = file
@@ -149,12 +149,12 @@ func (vd *versionedDir) Create(ctx context.Context, req *fuse.CreateRequest, res
 }
 
 // NodeMkdirer
-func (vd *versionedDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
+func (vd *verDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
 	return vd.createDir(req.Name)
 }
 
 // NodeRemover
-func (vd *versionedDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
+func (vd *verDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	if req.Dir {
 		node := vd.dirs[req.Name].node
 		ver := node.ver
@@ -189,7 +189,7 @@ func (vd *versionedDir) Remove(ctx context.Context, req *fuse.RemoveRequest) err
 }
 
 // NodeRequestLookuper
-func (vd *versionedDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+func (vd *verDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	if dir, ok := vd.dirs[name]; ok {
 		return dir, nil
 	}
@@ -202,7 +202,7 @@ func (vd *versionedDir) Lookup(ctx context.Context, name string) (fs.Node, error
 }
 
 // HandleReadDirAller
-func (vd *versionedDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+func (vd *verDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	entries := []fuse.Dirent{{Inode: vd.inode, Name: ".", Type: fuse.DT_Dir}}
 	if vd.parent != nil {
 		entry := fuse.Dirent{Inode: vd.parent.inode, Name: "..", Type: fuse.DT_Dir}

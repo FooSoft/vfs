@@ -30,17 +30,17 @@ import (
 )
 
 //
-//	versionMetadata
+//	verMeta
 //
 
-type versionMetadata struct {
+type verMeta struct {
 	Deleted []string `json:"deleted"`
 	path    string
 	dirty   bool
 }
 
-func newVersionMetadata(path string) (*versionMetadata, error) {
-	meta := &versionMetadata{path: path}
+func newVerMeta(path string) (*verMeta, error) {
+	meta := &verMeta{path: path}
 	if err := meta.load(); err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func newVersionMetadata(path string) (*versionMetadata, error) {
 	return meta, nil
 }
 
-func (m *versionMetadata) filter(nodes versionedNodeMap) {
+func (m *verMeta) filter(nodes verNodeMap) {
 	for _, delPath := range m.Deleted {
 		for name, node := range nodes {
 			if strings.HasPrefix(node.path, delPath) {
@@ -58,20 +58,20 @@ func (m *versionMetadata) filter(nodes versionedNodeMap) {
 	}
 }
 
-func (m *versionMetadata) removeNode(path string) {
+func (m *verMeta) removeNode(path string) {
 	m.Deleted = append(m.Deleted, path)
 	m.dirty = true
 }
 
-func (m *versionMetadata) createNode(path string) {
+func (m *verMeta) createNode(path string) {
 	m.dirty = true
 }
 
-func (m *versionMetadata) modifyNode(path string) {
+func (m *verMeta) modifyNode(path string) {
 	m.dirty = true
 }
 
-func (m *versionMetadata) load() error {
+func (m *verMeta) load() error {
 	m.dirty = false
 
 	if _, err := os.Stat(m.path); os.IsNotExist(err) {
@@ -90,7 +90,7 @@ func (m *versionMetadata) load() error {
 	return nil
 }
 
-func (m *versionMetadata) save() error {
+func (m *verMeta) save() error {
 	if !m.dirty {
 		return nil
 	}

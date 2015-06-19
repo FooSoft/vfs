@@ -23,14 +23,9 @@
 package main
 
 import (
-	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"time"
 
 	"bazil.org/fuse/fs"
@@ -44,13 +39,13 @@ type version struct {
 	base      string
 	parent    *version
 	timestamp time.Time
-	meta      *versionMetadata
-	root      *versionedDir
+	meta      *verMeta
+	root      *verDir
 	db        *database
 }
 
 func newVersion(base string, timestamp time.Time, db *database) (*version, error) {
-	meta, err := newVersionMetadata(filepath.Join(base, "meta.json"))
+	meta, err := newVerMeta(filepath.Join(base, "meta.json"))
 	if err != nil {
 		return nil, err
 	}
@@ -58,8 +53,8 @@ func newVersion(base string, timestamp time.Time, db *database) (*version, error
 	return &version{base, nil, timestamp, meta, nil, db}, nil
 }
 
-func (v *version) scanDir(path string) (versionedNodeMap, error) {
-	var baseNodes versionedNodeMap
+func (v *version) scanDir(path string) (verNodeMap, error) {
+	var baseNodes verNodeMap
 	if v.parent != nil {
 		var err error
 
@@ -71,7 +66,7 @@ func (v *version) scanDir(path string) (versionedNodeMap, error) {
 		v.meta.filter(baseNodes)
 	}
 
-	ownNodes := make(versionedNodeMap)
+	ownNodes := make(verNodeMap)
 	{
 		infos, err := ioutil.ReadDir(v.rebasePath(path))
 		if !os.IsNotExist(err) {
@@ -88,7 +83,7 @@ func (v *version) scanDir(path string) (versionedNodeMap, error) {
 				childName := info.Name()
 				childPath := filepath.Join(path, childName)
 
-				ownNodes[childName] = newVersionedNode(childPath, v, nil, childFlags)
+				ownNodes[childName] = newVerNode(childPath, v, nil, childFlags)
 			}
 		}
 
@@ -107,7 +102,7 @@ func (v *version) scanDir(path string) (versionedNodeMap, error) {
 	return baseNodes, nil
 }
 
-func (v *version) buildDir(dir *versionedDir) error {
+func (v *version) buildDir(dir *verDir) error {
 	nodes, err := v.scanDir(dir.node.path)
 	if err != nil {
 		return err
@@ -115,14 +110,14 @@ func (v *version) buildDir(dir *versionedDir) error {
 
 	for name, node := range nodes {
 		if node.flags&NodeFlagDir == NodeFlagDir {
-			subDir := newVersionedDir(node, dir)
+			subDir := newVerDir(node, dir)
 			if err := v.buildDir(subDir); err != nil {
 				return err
 			}
 
 			dir.dirs[name] = subDir
 		} else {
-			dir.files[name] = newVersionedFile(node, dir)
+			dir.files[name] = newVerFile(node, dir)
 		}
 	}
 
@@ -130,8 +125,8 @@ func (v *version) buildDir(dir *versionedDir) error {
 }
 
 func (v *version) resolve() error {
-	node := newVersionedNode("/", v, nil, NodeFlagDir)
-	root := newVersionedDir(node, nil)
+	node := newVerNode("/", v, nil, NodeFlagDir)
+	root := newVerDir(node, nil)
 
 	if err := v.buildDir(root); err != nil {
 		return err
@@ -163,55 +158,19 @@ func (v *version) Root() (fs.Node, error) {
 }
 
 //
-// versionList
+// verList
 //
 
-type versionList []*version
+type verList []*version
 
-func (v versionList) Len() int {
+func (v verList) Len() int {
 	return len(v)
 }
 
-func (v versionList) Swap(i, j int) {
+func (v verList) Swap(i, j int) {
 	v[i], v[j] = v[j], v[i]
 }
 
-func (v versionList) Less(i, j int) bool {
+func (v verList) Less(i, j int) bool {
 	return v[i].timestamp.Unix() < v[j].timestamp.Unix()
-}
-
-//
-//	version helpers
-//
-
-func buildNewVersion(base string) error {
-	name := buildVerName(time.Now())
-	if err := os.MkdirAll(path.Join(base, name, "root"), 0755); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func buildVerName(timestamp time.Time) string {
-	return fmt.Sprintf("ver_%.16x", timestamp.Unix())
-}
-
-func parseVerName(name string) (time.Time, error) {
-	re, err := regexp.Compile(`ver_([0-9a-f]+)$`)
-	if err != nil {
-		return time.Unix(0, 0), err
-	}
-
-	matches := re.FindStringSubmatch(name)
-	if len(matches) < 2 {
-		return time.Unix(0, 0), errors.New("invalid version identifier")
-	}
-
-	timestamp, err := strconv.ParseInt(matches[1], 16, 64)
-	if err != nil {
-		return time.Unix(0, 0), err
-	}
-
-	return time.Unix(timestamp, 0), nil
 }

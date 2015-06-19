@@ -31,7 +31,7 @@ import (
 )
 
 //
-//	versionedNode
+//	verNode
 //
 
 const (
@@ -39,18 +39,18 @@ const (
 	NodeFlagVer
 )
 
-type versionedNode struct {
+type verNode struct {
 	path   string
 	ver    *version
-	parent *versionedNode
+	parent *verNode
 	flags  int
 }
 
-func newVersionedNode(path string, ver *version, parent *versionedNode, flags int) *versionedNode {
-	return &versionedNode{path, ver, parent, flags}
+func newVerNode(path string, ver *version, parent *verNode, flags int) *verNode {
+	return &verNode{path, ver, parent, flags}
 }
 
-func (n *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+func (n *verNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
 	if err := n.attr(&resp.Attr); err != nil {
 		return err
 	}
@@ -92,24 +92,24 @@ func (n *versionedNode) setAttr(req *fuse.SetattrRequest, resp *fuse.SetattrResp
 	return nil
 }
 
-func (n *versionedNode) rebasedPath() string {
+func (n *verNode) rebasedPath() string {
 	return n.ver.rebasePath(n.path)
 }
 
-func (n *versionedNode) owner(stat syscall.Stat_t) (gid, uid uint32) {
+func (n *verNode) owner(stat syscall.Stat_t) (gid, uid uint32) {
 	gid = stat.Gid
 	uid = stat.Uid
 	return
 }
 
-func (n *versionedNode) times(stat syscall.Stat_t) (atime, mtime, ctime time.Time) {
+func (n *verNode) times(stat syscall.Stat_t) (atime, mtime, ctime time.Time) {
 	atime = time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
 	mtime = time.Unix(int64(stat.Mtim.Sec), int64(stat.Mtim.Nsec))
 	ctime = time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec))
 	return
 }
 
-func (n *versionedNode) attr(attr *fuse.Attr) error {
+func (n *verNode) attr(attr *fuse.Attr) error {
 	info, err := os.Stat(n.rebasedPath())
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func (n *versionedNode) attr(attr *fuse.Attr) error {
 }
 
 //
-// versionedNodeMap
+// verNodeMap
 //
 
-type versionedNodeMap map[string]*versionedNode
+type verNodeMap map[string]*verNode

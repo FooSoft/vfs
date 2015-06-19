@@ -23,14 +23,16 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"os"
+	"path"
+	"regexp"
+	"strconv"
 	"sync/atomic"
+	"time"
 )
-
-//
-//	utilities
-//
 
 var inodeCnt uint64
 
@@ -38,7 +40,7 @@ func allocInode() uint64 {
 	return atomic.AddUint64(&inodeCnt, 1)
 }
 
-func fileCopy(src, dst string) (int64, error) {
+func copyFile(src, dst string) (int64, error) {
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return 0, err
@@ -52,4 +54,36 @@ func fileCopy(src, dst string) (int64, error) {
 	defer dstFile.Close()
 
 	return io.Copy(srcFile, dstFile)
+}
+
+func buildNewVersion(base string) error {
+	name := buildVerName(time.Now())
+	if err := os.MkdirAll(path.Join(base, name, "root"), 0755); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func buildVerName(timestamp time.Time) string {
+	return fmt.Sprintf("ver_%.16x", timestamp.Unix())
+}
+
+func parseVerName(name string) (time.Time, error) {
+	re, err := regexp.Compile(`ver_([0-9a-f]+)$`)
+	if err != nil {
+		return time.Unix(0, 0), err
+	}
+
+	matches := re.FindStringSubmatch(name)
+	if len(matches) < 2 {
+		return time.Unix(0, 0), errors.New("invalid version identifier")
+	}
+
+	timestamp, err := strconv.ParseInt(matches[1], 16, 64)
+	if err != nil {
+		return time.Unix(0, 0), err
+	}
+
+	return time.Unix(timestamp, 0), nil
 }

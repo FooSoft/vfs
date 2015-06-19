@@ -37,7 +37,7 @@ import (
 
 type database struct {
 	base string
-	vers versionList
+	vers verList
 }
 
 func newDatabase(dir string) (*database, error) {
@@ -85,13 +85,13 @@ func (db *database) save() error {
 	return nil
 }
 
-func (db *database) buildVersions(base string) (versionList, error) {
+func (db *database) buildVersions(base string) (verList, error) {
 	nodes, err := ioutil.ReadDir(base)
 	if err != nil {
 		return nil, err
 	}
 
-	var vers versionList
+	var vers verList
 	for _, node := range nodes {
 		if !node.IsDir() {
 			continue
