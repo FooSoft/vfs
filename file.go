@@ -62,7 +62,7 @@ func (vf *verFile) version() error {
 	return nil
 }
 
-func (vf *verFile) open(flags fuse.OpenFlags, create bool) (*verFileHandle, error) {
+func (vf *verFile) open(flags fuse.OpenFlags, mode os.FileMode, create bool) (*verFileHandle, error) {
 	if !create && !flags.IsReadOnly() {
 		if err := vf.version(); err != nil {
 			return nil, err
@@ -71,7 +71,7 @@ func (vf *verFile) open(flags fuse.OpenFlags, create bool) (*verFileHandle, erro
 
 	path := vf.node.rebasedPath()
 
-	handle, err := os.OpenFile(path, int(flags), 0644)
+	handle, err := os.OpenFile(path, int(flags), mode)
 	if err != nil {
 		return nil, err
 	}
@@ -106,12 +106,11 @@ func (vf *verFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *
 
 // NodeOpener
 func (vf *verFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
-	handle, err := vf.open(req.Flags, false)
+	handle, err := vf.open(req.Flags, 0644, false)
 	if err != nil {
 		return nil, err
 	}
 
-	resp.Handle = handle.id
 	return handle, nil
 }
 
@@ -178,6 +177,6 @@ func (vfh *verFileHandle) Release(ctx context.Context, req *fuse.ReleaseRequest)
 	vfh.handle.Close()
 	vfh.handle = nil
 
-	vfh.node.release(req.Handle)
+	vfh.node.release(vfh.id)
 	return nil
 }

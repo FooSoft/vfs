@@ -86,7 +86,7 @@ func (vd *verDir) createDir(name string) (*verDir, error) {
 	return dir, nil
 }
 
-func (vd *verDir) createFile(name string, flags fuse.OpenFlags) (*verFile, *verFileHandle, error) {
+func (vd *verDir) createFile(name string, flags fuse.OpenFlags, mode os.FileMode) (*verFile, *verFileHandle, error) {
 	if err := vd.version(); err != nil {
 		return nil, nil, err
 	}
@@ -95,7 +95,7 @@ func (vd *verDir) createFile(name string, flags fuse.OpenFlags) (*verFile, *verF
 	node := newVerNode(childPath, vd.node.ver, nil, NodeFlagVer)
 	file := newVerFile(node, vd)
 
-	handle, err := file.open(flags, true)
+	handle, err := file.open(flags, mode, true)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -130,19 +130,10 @@ func (vd *verDir) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *f
 // NodeCreater
 func (vd *verDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (node fs.Node, handle fs.Handle, err error) {
 	if req.Mode.IsDir() {
-		var dir *verDir
-		if dir, err = vd.createDir(req.Name); err == nil {
-			node = dir
-			handle = dir
-		}
+		node, err = vd.createDir(req.Name)
+		handle = node
 	} else if req.Mode.IsRegular() {
-		var file *verFile
-		var vfh *verFileHandle
-		if file, vfh, err = vd.createFile(req.Name, req.Flags); err == nil {
-			node = file
-			handle = handle
-			resp.Handle = vfh.id
-		}
+		node, handle, err = vd.createFile(req.Name, req.Flags, req.Mode)
 	} else {
 		err = errors.New("unsupported filetype")
 	}
