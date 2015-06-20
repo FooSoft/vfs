@@ -38,11 +38,11 @@ type verFile struct {
 	node    *verNode
 	inode   uint64
 	parent  *verDir
-	handles map[fuse.HandleID]*verFileHandle
+	handles map[uint64]*verFileHandle
 }
 
 func newVerFile(node *verNode, parent *verDir) *verFile {
-	return &verFile{node, allocInode(), parent, make(map[fuse.HandleID]*verFileHandle)}
+	return &verFile{node, allocInode(), parent, make(map[uint64]*verFileHandle)}
 }
 
 func (vf *verFile) version() error {
@@ -62,8 +62,8 @@ func (vf *verFile) version() error {
 	return nil
 }
 
-func (vf *verFile) open(flags fuse.OpenFlags, mode os.FileMode, create bool) (*verFileHandle, error) {
-	if !create && !flags.IsReadOnly() {
+func (vf *verFile) open(flags fuse.OpenFlags, mode os.FileMode) (*verFileHandle, error) {
+	if !flags.IsReadOnly() {
 		if err := vf.version(); err != nil {
 			return nil, err
 		}
@@ -76,14 +76,14 @@ func (vf *verFile) open(flags fuse.OpenFlags, mode os.FileMode, create bool) (*v
 		return nil, err
 	}
 
-	id := fuse.HandleID(allocHandleId())
+	id := allocHandleId()
 	verHandle := &verFileHandle{vf, path, handle, id}
 	vf.handles[id] = verHandle
 
 	return verHandle, nil
 }
 
-func (vf *verFile) release(handle fuse.HandleID) {
+func (vf *verFile) release(handle uint64) {
 	delete(vf.handles, handle)
 }
 
@@ -106,7 +106,7 @@ func (vf *verFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *
 
 // NodeOpener
 func (vf *verFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
-	handle, err := vf.open(req.Flags, 0644, false)
+	handle, err := vf.open(req.Flags, 0644)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ type verFileHandle struct {
 	node   *verFile
 	path   string
 	handle *os.File
-	id     fuse.HandleID
+	id     uint64
 }
 
 // HandleReader

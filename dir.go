@@ -95,7 +95,7 @@ func (vd *verDir) createFile(name string, flags fuse.OpenFlags, mode os.FileMode
 	node := newVerNode(childPath, vd.node.ver, nil, NodeFlagVer)
 	file := newVerFile(node, vd)
 
-	handle, err := file.open(flags, mode, true)
+	handle, err := file.open(flags, mode)
 	if err != nil {
 		return nil, nil, err
 	}
