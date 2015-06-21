@@ -109,6 +109,10 @@ func (vd *verDir) createFile(name string, flags fuse.OpenFlags, mode os.FileMode
 }
 
 func (vd *verDir) removeDir(name string) error {
+	if err := vd.version(); err != nil {
+		return err
+	}
+
 	node := vd.dirs[name].node
 	ver := node.ver
 
@@ -127,6 +131,10 @@ func (vd *verDir) removeDir(name string) error {
 }
 
 func (vd *verDir) removeFile(name string) error {
+	if err := vd.version(); err != nil {
+		return err
+	}
+
 	node := vd.files[name].node
 	ver := node.ver
 
@@ -194,10 +202,6 @@ func (vd *verDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, e
 func (vd *verDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	vd.mutex.Lock()
 	defer vd.mutex.Unlock()
-
-	if err := vd.version(); err != nil {
-		return err
-	}
 
 	if req.Dir {
 		return vd.removeDir(req.Name)
