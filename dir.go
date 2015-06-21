@@ -108,6 +108,42 @@ func (vd *verDir) createFile(name string, flags fuse.OpenFlags, mode os.FileMode
 	return file, handle, id, nil
 }
 
+func (vd *verDir) removeDir(name string) error {
+	node := vd.dirs[name].node
+	ver := node.ver
+
+	if node.flags&NodeFlagNew == NodeFlagNew {
+		if err := os.Remove(node.rebasedPath()); err != nil {
+			return err
+		}
+
+		ver = ver.parent
+	}
+
+	ver.meta.removeNode(node.path)
+	delete(vd.dirs, name)
+
+	return nil
+}
+
+func (vd *verDir) removeFile(name string) error {
+	node := vd.files[name].node
+	ver := node.ver
+
+	if node.flags&NodeFlagNew == NodeFlagNew {
+		if err := os.Remove(node.rebasedPath()); err != nil {
+			return err
+		}
+
+		ver = ver.parent
+	}
+
+	ver.meta.removeNode(node.path)
+	delete(vd.files, name)
+
+	return nil
+}
+
 // Node
 func (vd *verDir) Attr(ctx context.Context, attr *fuse.Attr) error {
 	if err := vd.node.attr(attr); err != nil {
@@ -159,37 +195,15 @@ func (vd *verDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	vd.mutex.Lock()
 	defer vd.mutex.Unlock()
 
-	if req.Dir {
-		node := vd.dirs[req.Name].node
-		ver := node.ver
-
-		if node.flags&NodeFlagNew == NodeFlagNew {
-			if err := os.Remove(node.rebasedPath()); err != nil {
-				return err
-			}
-
-			ver = ver.parent
-		}
-
-		ver.meta.removeNode(node.path)
-		delete(vd.dirs, req.Name)
-	} else {
-		node := vd.files[req.Name].node
-		ver := node.ver
-
-		if node.flags&NodeFlagNew == NodeFlagNew {
-			if err := os.Remove(node.rebasedPath()); err != nil {
-				return err
-			}
-
-			ver = ver.parent
-		}
-
-		ver.meta.removeNode(node.path)
-		delete(vd.files, req.Name)
+	if err := vd.version(); err != nil {
+		return err
 	}
 
-	return nil
+	if req.Dir {
+		return vd.removeDir(req.Name)
+	} else {
+		return vd.removeFile(req.Name)
+	}
 }
 
 // NodeRequestLookuper
