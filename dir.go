@@ -26,6 +26,7 @@ import (
 	"errors"
 	"os"
 	"path"
+	"sync"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
@@ -42,22 +43,23 @@ type verDir struct {
 	node   *verNode
 	inode  uint64
 	parent *verDir
+	mutex  sync.Mutex
 }
 
 func newVerDir(node *verNode, parent *verDir) *verDir {
 	dirs := make(map[string]*verDir)
 	files := make(map[string]*verFile)
+	mutex := sync.Mutex{}
 
-	return &verDir{dirs, files, node, allocInode(), parent}
+	return &verDir{dirs, files, node, allocInode(), parent, mutex}
 }
 
 func (vd *verDir) version() error {
-	if vd.node.flags&NodeFlagVer == NodeFlagVer {
+	if vd.node.flags&NodeFlagNew == NodeFlagNew {
 		return nil
 	}
 
-	node := newVerNode(vd.node.path, vd.node.ver.db.lastVersion(), vd.node, NodeFlagDir|NodeFlagVer)
-
+	node := newVerNode(vd.node.path, vd.node.ver.db.lastVersion(), vd.node, NodeFlagDir|NodeFlagNew)
 	if err := os.MkdirAll(node.rebasedPath(), 0755); err != nil {
 		return err
 	}
@@ -78,7 +80,7 @@ func (vd *verDir) createDir(name string) (*verDir, error) {
 		return nil, err
 	}
 
-	node := newVerNode(childPath, vd.node.ver, nil, NodeFlagDir|NodeFlagVer)
+	node := newVerNode(childPath, vd.node.ver, nil, NodeFlagDir|NodeFlagNew)
 	dir := newVerDir(node, vd)
 	vd.dirs[name] = dir
 	node.ver.meta.createNode(node.path)
@@ -86,24 +88,24 @@ func (vd *verDir) createDir(name string) (*verDir, error) {
 	return dir, nil
 }
 
-func (vd *verDir) createFile(name string, flags fuse.OpenFlags, mode os.FileMode) (*verFile, *verFileHandle, error) {
+func (vd *verDir) createFile(name string, flags fuse.OpenFlags, mode os.FileMode) (*verFile, *verFileHandle, fuse.HandleID, error) {
 	if err := vd.version(); err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 
 	childPath := path.Join(vd.node.path, name)
-	node := newVerNode(childPath, vd.node.ver, nil, NodeFlagVer)
+	node := newVerNode(childPath, vd.node.ver, nil, NodeFlagNew)
 	file := newVerFile(node, vd)
 
-	handle, err := file.open(flags, mode)
+	handle, id, err := file.open(flags, mode)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, err
 	}
 
 	vd.files[name] = file
 	node.ver.meta.createNode(node.path)
 
-	return file, handle, nil
+	return file, handle, id, nil
 }
 
 // Node
@@ -129,11 +131,14 @@ func (vd *verDir) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *f
 
 // NodeCreater
 func (vd *verDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (node fs.Node, handle fs.Handle, err error) {
+	vd.mutex.Lock()
+	defer vd.mutex.Unlock()
+
 	if req.Mode.IsDir() {
 		node, err = vd.createDir(req.Name)
 		handle = node
 	} else if req.Mode.IsRegular() {
-		node, handle, err = vd.createFile(req.Name, req.Flags, req.Mode)
+		node, handle, resp.Handle, err = vd.createFile(req.Name, req.Flags, req.Mode)
 	} else {
 		err = errors.New("unsupported filetype")
 	}
@@ -143,16 +148,22 @@ func (vd *verDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fus
 
 // NodeMkdirer
 func (vd *verDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
+	vd.mutex.Lock()
+	defer vd.mutex.Unlock()
+
 	return vd.createDir(req.Name)
 }
 
 // NodeRemover
 func (vd *verDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
+	vd.mutex.Lock()
+	defer vd.mutex.Unlock()
+
 	if req.Dir {
 		node := vd.dirs[req.Name].node
 		ver := node.ver
 
-		if node.flags&NodeFlagVer == NodeFlagVer {
+		if node.flags&NodeFlagNew == NodeFlagNew {
 			if err := os.Remove(node.rebasedPath()); err != nil {
 				return err
 			}
@@ -166,7 +177,7 @@ func (vd *verDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 		node := vd.files[req.Name].node
 		ver := node.ver
 
-		if node.flags&NodeFlagVer == NodeFlagVer {
+		if node.flags&NodeFlagNew == NodeFlagNew {
 			if err := os.Remove(node.rebasedPath()); err != nil {
 				return err
 			}
@@ -183,6 +194,9 @@ func (vd *verDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 
 // NodeRequestLookuper
 func (vd *verDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	vd.mutex.Lock()
+	defer vd.mutex.Unlock()
+
 	if dir, ok := vd.dirs[name]; ok {
 		return dir, nil
 	}
@@ -196,6 +210,9 @@ func (vd *verDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 
 // HandleReadDirAller
 func (vd *verDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+	vd.mutex.Lock()
+	defer vd.mutex.Unlock()
+
 	entries := []fuse.Dirent{{Inode: vd.inode, Name: ".", Type: fuse.DT_Dir}}
 	if vd.parent != nil {
 		entry := fuse.Dirent{Inode: vd.parent.inode, Name: "..", Type: fuse.DT_Dir}

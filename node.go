@@ -36,7 +36,7 @@ import (
 
 const (
 	NodeFlagDir = 1 << iota
-	NodeFlagVer
+	NodeFlagNew
 )
 
 type verNode struct {

@@ -24,6 +24,7 @@ package main
 
 import (
 	"os"
+	"sync"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
@@ -34,24 +35,28 @@ import (
 //	verFile
 //
 
+type handleMap map[fuse.HandleID]*verFileHandle
+
 type verFile struct {
 	node    *verNode
 	inode   uint64
 	parent  *verDir
-	handles map[uint64]*verFileHandle
+	handles handleMap
+	mutex   sync.Mutex
 }
 
 func newVerFile(node *verNode, parent *verDir) *verFile {
-	return &verFile{node, allocInode(), parent, make(map[uint64]*verFileHandle)}
+	handles := make(handleMap)
+	mutex := sync.Mutex{}
+	return &verFile{node, allocInode(), parent, handles, mutex}
 }
 
 func (vf *verFile) version() error {
-	if vf.node.flags&NodeFlagVer == NodeFlagVer {
+	if vf.node.flags&NodeFlagNew == NodeFlagNew {
 		return nil
 	}
 
-	node := newVerNode(vf.node.path, vf.node.ver.db.lastVersion(), vf.node, NodeFlagVer)
-
+	node := newVerNode(vf.node.path, vf.node.ver.db.lastVersion(), vf.node, NodeFlagNew)
 	if _, err := copyFile(vf.node.rebasedPath(), node.rebasedPath()); err != nil {
 		return err
 	}
@@ -62,10 +67,13 @@ func (vf *verFile) version() error {
 	return nil
 }
 
-func (vf *verFile) open(flags fuse.OpenFlags, mode os.FileMode) (*verFileHandle, error) {
+func (vf *verFile) open(flags fuse.OpenFlags, mode os.FileMode) (*verFileHandle, fuse.HandleID, error) {
+	vf.mutex.Lock()
+	defer vf.mutex.Unlock()
+
 	if !flags.IsReadOnly() {
 		if err := vf.version(); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 	}
 
@@ -73,18 +81,20 @@ func (vf *verFile) open(flags fuse.OpenFlags, mode os.FileMode) (*verFileHandle,
 
 	handle, err := os.OpenFile(path, int(flags), mode)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	id := allocHandleId()
-	verHandle := &verFileHandle{vf, path, handle, id}
+	verHandle := &verFileHandle{vf, path, handle}
 	vf.handles[id] = verHandle
 
-	return verHandle, nil
+	return verHandle, id, nil
 }
 
-func (vf *verFile) release(handle uint64) {
+func (vf *verFile) release(handle fuse.HandleID) {
+	vf.mutex.Lock()
 	delete(vf.handles, handle)
+	vf.mutex.Unlock()
 }
 
 // Node
@@ -106,23 +116,20 @@ func (vf *verFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *
 
 // NodeOpener
 func (vf *verFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
-	handle, err := vf.open(req.Flags, 0644)
+	handle, id, err := vf.open(req.Flags, 0644)
 	if err != nil {
 		return nil, err
 	}
 
+	resp.Handle = id
 	return handle, nil
 }
 
 // NodeFsyncer
 func (vf *verFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
-	for _, vfh := range vf.handles {
-		if err := vfh.handle.Sync(); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	vf.mutex.Lock()
+	defer vf.mutex.Unlock()
+	return vf.handles[req.Handle].handle.Sync()
 }
 
 //
@@ -133,7 +140,6 @@ type verFileHandle struct {
 	node   *verFile
 	path   string
 	handle *os.File
-	id     uint64
 }
 
 // HandleReader
@@ -177,6 +183,6 @@ func (vfh *verFileHandle) Release(ctx context.Context, req *fuse.ReleaseRequest)
 	vfh.handle.Close()
 	vfh.handle = nil
 
-	vfh.node.release(vfh.id)
+	vfh.node.release(req.Handle)
 	return nil
 }
