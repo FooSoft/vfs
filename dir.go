@@ -114,18 +114,14 @@ func (vd *verDir) removeDir(name string) error {
 	}
 
 	node := vd.dirs[name].node
-	ver := node.ver
-
 	if node.flags&NodeFlagNew == NodeFlagNew {
 		if err := os.Remove(node.rebasedPath()); err != nil {
 			return err
 		}
-
-		ver = ver.parent
 	}
 
-	if ver != nil {
-		ver.meta.removeNode(node.path)
+	if node.parent != nil {
+		vd.node.ver.meta.removeNode(node.path)
 	}
 
 	delete(vd.dirs, name)
@@ -138,18 +134,14 @@ func (vd *verDir) removeFile(name string) error {
 	}
 
 	node := vd.files[name].node
-	ver := node.ver
-
 	if node.flags&NodeFlagNew == NodeFlagNew {
 		if err := os.Remove(node.rebasedPath()); err != nil {
 			return err
 		}
-
-		ver = ver.parent
 	}
 
-	if ver != nil {
-		ver.meta.removeNode(node.path)
+	if node.parent != nil {
+		vd.node.ver.meta.removeNode(node.path)
 	}
 
 	delete(vd.files, name)
