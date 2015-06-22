@@ -46,12 +46,13 @@ type verFile struct {
 }
 
 func newVerFile(node *verNode, parent *verDir) *verFile {
-	handles := make(handleMap)
-	mutex := sync.Mutex{}
-	return &verFile{node, allocInode(), parent, handles, mutex}
+	return &verFile{node, allocInode(), parent, make(handleMap), sync.Mutex{}}
 }
 
 func (vf *verFile) version() error {
+	vf.mutex.Lock()
+	defer vf.mutex.Unlock()
+
 	if vf.node.flags&NodeFlagNew == NodeFlagNew {
 		return nil
 	}
@@ -61,16 +62,13 @@ func (vf *verFile) version() error {
 		return err
 	}
 
-	node.ver.meta.modifyNode(node.path)
 	vf.node = node
+	node.ver.meta.modifyNode(node.path)
 
 	return nil
 }
 
 func (vf *verFile) open(flags fuse.OpenFlags, mode os.FileMode) (*verFileHandle, fuse.HandleID, error) {
-	vf.mutex.Lock()
-	defer vf.mutex.Unlock()
-
 	if !flags.IsReadOnly() {
 		if err := vf.version(); err != nil {
 			return nil, 0, err
@@ -86,7 +84,10 @@ func (vf *verFile) open(flags fuse.OpenFlags, mode os.FileMode) (*verFileHandle,
 
 	id := allocHandleId()
 	verHandle := &verFileHandle{vf, path, handle}
+
+	vf.mutex.Lock()
 	vf.handles[id] = verHandle
+	vf.mutex.Unlock()
 
 	return verHandle, id, nil
 }

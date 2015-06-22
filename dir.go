@@ -49,12 +49,14 @@ type verDir struct {
 func newVerDir(node *verNode, parent *verDir) *verDir {
 	dirs := make(map[string]*verDir)
 	files := make(map[string]*verFile)
-	mutex := sync.Mutex{}
 
-	return &verDir{dirs, files, node, allocInode(), parent, mutex}
+	return &verDir{dirs, files, node, allocInode(), parent, sync.Mutex{}}
 }
 
 func (vd *verDir) version() error {
+	vd.mutex.Lock()
+	defer vd.mutex.Unlock()
+
 	if vd.node.flags&NodeFlagNew == NodeFlagNew {
 		return nil
 	}
@@ -64,8 +66,8 @@ func (vd *verDir) version() error {
 		return err
 	}
 
-	node.ver.meta.modifyNode(node.path)
 	vd.node = node
+	node.ver.meta.modifyNode(node.path)
 
 	return nil
 }
@@ -82,9 +84,12 @@ func (vd *verDir) createDir(name string) (*verDir, error) {
 
 	node := newVerNode(childPath, vd.node.ver, nil, NodeFlagDir|NodeFlagNew)
 	dir := newVerDir(node, vd)
-	vd.dirs[name] = dir
-	node.ver.meta.createNode(node.path)
 
+	vd.mutex.Lock()
+	vd.dirs[name] = dir
+	vd.mutex.Unlock()
+
+	node.ver.meta.createNode(node.path)
 	return dir, nil
 }
 
@@ -102,9 +107,11 @@ func (vd *verDir) createFile(name string, flags fuse.OpenFlags, mode os.FileMode
 		return nil, nil, 0, err
 	}
 
+	vd.mutex.Lock()
 	vd.files[name] = file
-	node.ver.meta.createNode(node.path)
+	vd.mutex.Unlock()
 
+	node.ver.meta.createNode(node.path)
 	return file, handle, id, nil
 }
 
@@ -122,7 +129,10 @@ func (vd *verDir) removeDir(name string) error {
 		vd.node.ver.meta.removeNode(node.path)
 	}
 
+	vd.mutex.Lock()
 	delete(vd.dirs, name)
+	vd.mutex.Unlock()
+
 	return nil
 }
 
@@ -140,7 +150,10 @@ func (vd *verDir) removeFile(name string) error {
 		vd.node.ver.meta.removeNode(node.path)
 	}
 
+	vd.mutex.Lock()
 	delete(vd.files, name)
+	vd.mutex.Unlock()
+
 	return nil
 }
 
@@ -167,9 +180,6 @@ func (vd *verDir) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *f
 
 // NodeCreater
 func (vd *verDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (node fs.Node, handle fs.Handle, err error) {
-	vd.mutex.Lock()
-	defer vd.mutex.Unlock()
-
 	if req.Mode.IsDir() {
 		node, err = vd.createDir(req.Name)
 		handle = node
@@ -184,17 +194,11 @@ func (vd *verDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fus
 
 // NodeMkdirer
 func (vd *verDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
-	vd.mutex.Lock()
-	defer vd.mutex.Unlock()
-
 	return vd.createDir(req.Name)
 }
 
 // NodeRemover
 func (vd *verDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
-	vd.mutex.Lock()
-	defer vd.mutex.Unlock()
-
 	if req.Dir {
 		return vd.removeDir(req.Name)
 	} else {
