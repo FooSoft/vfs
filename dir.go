@@ -118,9 +118,7 @@ func (vd *verDir) removeDir(name string) error {
 		if err := os.Remove(node.rebasedPath()); err != nil {
 			return err
 		}
-	}
-
-	if node.parent != nil {
+	} else {
 		vd.node.ver.meta.removeNode(node.path)
 	}
 
@@ -138,9 +136,7 @@ func (vd *verDir) removeFile(name string) error {
 		if err := os.Remove(node.rebasedPath()); err != nil {
 			return err
 		}
-	}
-
-	if node.parent != nil {
+	} else {
 		vd.node.ver.meta.removeNode(node.path)
 	}
 
