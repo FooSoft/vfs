@@ -116,6 +116,9 @@ func (vd *verDir) createFile(name string, flags fuse.OpenFlags, mode os.FileMode
 }
 
 func (vd *verDir) removeDir(name string) error {
+	vd.mutex.Lock()
+	defer vd.mutex.Unlock()
+
 	if err := vd.version(); err != nil {
 		return err
 	}
@@ -129,14 +132,14 @@ func (vd *verDir) removeDir(name string) error {
 		vd.node.ver.meta.removeNode(node.path)
 	}
 
-	vd.mutex.Lock()
 	delete(vd.dirs, name)
-	vd.mutex.Unlock()
-
 	return nil
 }
 
 func (vd *verDir) removeFile(name string) error {
+	vd.mutex.Lock()
+	defer vd.mutex.Unlock()
+
 	if err := vd.version(); err != nil {
 		return err
 	}
@@ -150,10 +153,7 @@ func (vd *verDir) removeFile(name string) error {
 		vd.node.ver.meta.removeNode(node.path)
 	}
 
-	vd.mutex.Lock()
 	delete(vd.files, name)
-	vd.mutex.Unlock()
-
 	return nil
 }
 
