@@ -124,9 +124,11 @@ func (vd *verDir) removeDir(name string) error {
 		ver = ver.parent
 	}
 
-	ver.meta.removeNode(node.path)
-	delete(vd.dirs, name)
+	if ver != nil {
+		ver.meta.removeNode(node.path)
+	}
 
+	delete(vd.dirs, name)
 	return nil
 }
 
@@ -146,9 +148,11 @@ func (vd *verDir) removeFile(name string) error {
 		ver = ver.parent
 	}
 
-	ver.meta.removeNode(node.path)
-	delete(vd.files, name)
+	if ver != nil {
+		ver.meta.removeNode(node.path)
+	}
 
+	delete(vd.files, name)
 	return nil
 }
 
