@@ -23,6 +23,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -40,16 +41,16 @@ type database struct {
 	vers verList
 }
 
-func newDatabase(dir string) (*database, error) {
+func newDatabase(dir string, index int, writable bool) (*database, error) {
 	db := &database{base: dir}
-	if err := db.load(dir); err != nil {
+	if err := db.load(dir, index, writable); err != nil {
 		return nil, err
 	}
 
 	return db, nil
 }
 
-func (db *database) load(dir string) error {
+func (db *database) load(dir string, index int, writable bool) error {
 	var err error
 
 	db.base, err = filepath.Abs(dir)
@@ -57,13 +58,19 @@ func (db *database) load(dir string) error {
 		return err
 	}
 
-	if err := buildNewVersion(db.base); err != nil {
-		return err
+	if writable {
+		if err := buildNewVersion(db.base); err != nil {
+			return err
+		}
 	}
 
 	db.vers, err = db.buildVersions(db.base)
 	if err != nil {
 		return err
+	}
+
+	if index >= 0 {
+		db.vers = db.vers[index:]
 	}
 
 	if lastVer := db.lastVersion(); lastVer != nil {
@@ -112,10 +119,10 @@ func (db *database) buildVersions(base string) (verList, error) {
 
 	sort.Sort(vers)
 
-	var parVer *version
+	var pv *version
 	for _, ver := range vers {
-		ver.parent = parVer
-		parVer = ver
+		ver.parent = pv
+		pv = ver
 	}
 
 	return vers, nil
@@ -128,6 +135,12 @@ func (db *database) lastVersion() *version {
 	}
 
 	return db.vers[count-1]
+}
+
+func (db *database) dump() {
+	for index, ver := range db.vers {
+		fmt.Printf("version: %d\ttime: %s\n", index, ver.timestamp.String())
+	}
 }
 
 // FS

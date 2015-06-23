@@ -30,49 +30,61 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	_ "bazil.org/fuse/fs/fstestutil"
+	// _ "bazil.org/fuse/fs/fstestutil"
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s [options] database mountpoint\n\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage: %s [options] database [mountpoint]\n\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "Parameters:\n")
 	flag.PrintDefaults()
 }
 
 func main() {
+	version := flag.Int("version", -1, "version index (specify -1 for latest)")
 	flag.Usage = usage
 	flag.Parse()
 
-	if flag.NArg() != 2 {
+	if flag.NArg() < 1 {
 		usage()
 		os.Exit(2)
 	}
 
-	database := flag.Arg(0)
-	mountpoint := flag.Arg(1)
+	mount := flag.NArg() > 1
+	writable := mount && *version < 0
 
-	db, err := newDatabase(database)
+	db, err := newDatabase(flag.Arg(0), *version, writable)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	conn, err := fuse.Mount(mountpoint)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer conn.Close()
+	if mount {
+		var options []fuse.MountOption
+		if !writable {
+			options = append(options, fuse.ReadOnly())
+		}
 
-	err = fs.Serve(conn, db)
-	if err != nil {
-		log.Fatal(err)
-	}
+		conn, err := fuse.Mount(flag.Arg(1), options...)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer conn.Close()
 
-	<-conn.Ready
-	if err := conn.MountError; err != nil {
-		log.Fatal(err)
-	}
+		err = fs.Serve(conn, db)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	if err := db.save(); err != nil {
-		log.Fatal(err)
+		<-conn.Ready
+		if err := conn.MountError; err != nil {
+			log.Fatal(err)
+		}
+
+		if writable {
+			if err := db.save(); err != nil {
+				log.Fatal(err)
+			}
+		}
+	} else {
+		db.dump()
 	}
 }
