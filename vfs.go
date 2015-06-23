@@ -40,7 +40,7 @@ func usage() {
 }
 
 func main() {
-	version := flag.Int("version", -1, "version index (specify -1 for latest)")
+	version := flag.Int("version", 0, "version index (specify 0 for latest)")
 	readonly := flag.Bool("readonly", false, "mount filesystem as readonly")
 	flag.Usage = usage
 	flag.Parse()
@@ -51,7 +51,7 @@ func main() {
 	}
 
 	mount := flag.NArg() > 1
-	writable := mount && !*readonly && *version < 0
+	writable := mount && !*readonly && *version == 0
 
 	db, err := newDatabase(flag.Arg(0), *version, writable)
 	if err != nil {

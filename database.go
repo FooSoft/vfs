@@ -69,7 +69,7 @@ func (db *database) load(dir string, index int, writable bool) error {
 		return err
 	}
 
-	if index >= 0 {
+	if index > 0 {
 		db.vers = db.vers[:index]
 	}
 
@@ -139,7 +139,7 @@ func (db *database) lastVersion() *version {
 
 func (db *database) dump() {
 	for index, ver := range db.vers {
-		fmt.Printf("version: %d\ttime: %s\n", index, ver.timestamp.String())
+		fmt.Printf("version: %d\ttime: %s\n", index+1, ver.timestamp.String())
 	}
 }
 
