@@ -142,7 +142,7 @@ func (v *version) rebasePath(paths ...string) string {
 }
 
 func (v *version) finalize(last bool) error {
-	if v.meta.dirty {
+	if v.meta.modified {
 		return v.meta.save()
 	} else if last {
 		if err := os.RemoveAll(v.base); err != nil {

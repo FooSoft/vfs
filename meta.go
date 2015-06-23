@@ -26,21 +26,28 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"path"
 	"strings"
+	"sync"
 )
 
 //
 //	verMeta
 //
 
-type verMeta struct {
+type verFmt struct {
 	Deleted []string `json:"deleted"`
-	path    string
-	dirty   bool
+}
+
+type verMeta struct {
+	path     string
+	deleted  map[string]bool
+	modified bool
+	mutex    sync.Mutex
 }
 
 func newVerMeta(path string) (*verMeta, error) {
-	meta := &verMeta{path: path}
+	meta := &verMeta{path, make(map[string]bool), false, sync.Mutex{}}
 	if err := meta.load(); err != nil {
 		return nil, err
 	}
@@ -49,9 +56,13 @@ func newVerMeta(path string) (*verMeta, error) {
 }
 
 func (m *verMeta) filter(nodes verNodeMap) {
-	for _, delPath := range m.Deleted {
+	for path, deleted := range m.deleted {
+		if !deleted {
+			continue
+		}
+
 		for name, node := range nodes {
-			if strings.HasPrefix(node.path, delPath) {
+			if strings.HasPrefix(node.path, path) {
 				delete(nodes, name)
 			}
 		}
@@ -59,21 +70,26 @@ func (m *verMeta) filter(nodes verNodeMap) {
 }
 
 func (m *verMeta) removeNode(path string) {
-	m.Deleted = append(m.Deleted, path)
-	m.dirty = true
+	m.mutex.Lock()
+	m.deleted[path] = true
+	m.mutex.Unlock()
+
+	m.modified = true
 }
 
 func (m *verMeta) createNode(path string) {
-	m.dirty = true
+	m.mutex.Lock()
+	m.deleted[path] = false
+	m.mutex.Unlock()
+
+	m.modified = true
 }
 
 func (m *verMeta) modifyNode(path string) {
-	m.dirty = true
+	m.modified = true
 }
 
 func (m *verMeta) load() error {
-	m.dirty = false
-
 	if _, err := os.Stat(m.path); os.IsNotExist(err) {
 		return nil
 	}
@@ -83,19 +99,52 @@ func (m *verMeta) load() error {
 		return err
 	}
 
-	if err := json.Unmarshal(bytes, &m); err != nil {
+	var vd verFmt
+	if err := json.Unmarshal(bytes, &vd); err != nil {
 		return err
 	}
 
+	m.deleted = make(map[string]bool)
+	for _, path := range vd.Deleted {
+		m.deleted[path] = true
+	}
+
+	m.modified = false
 	return nil
 }
 
+func (m *verMeta) checkRedundantDel(child string) bool {
+	parent := path.Dir(child)
+	if parent == "/" {
+		return false
+	}
+
+	if deleted, _ := m.deleted[parent]; deleted {
+		return true
+	}
+
+	return m.checkRedundantDel(parent)
+}
+
 func (m *verMeta) save() error {
-	if !m.dirty {
+	if !m.modified {
 		return nil
 	}
 
-	js, err := json.Marshal(m)
+	var vd verFmt
+	for path, deleted := range m.deleted {
+		if !deleted {
+			continue
+		}
+
+		if m.checkRedundantDel(path) {
+			continue
+		}
+
+		vd.Deleted = append(vd.Deleted, path)
+	}
+
+	js, err := json.Marshal(vd)
 	if err != nil {
 		return err
 	}
