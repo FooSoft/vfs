@@ -70,7 +70,7 @@ func (db *database) load(dir string, index int, writable bool) error {
 	}
 
 	if index >= 0 {
-		db.vers = db.vers[index:]
+		db.vers = db.vers[:index]
 	}
 
 	if lastVer := db.lastVersion(); lastVer != nil {

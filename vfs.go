@@ -41,6 +41,7 @@ func usage() {
 
 func main() {
 	version := flag.Int("version", -1, "version index (specify -1 for latest)")
+	readonly := flag.Bool("readonly", false, "mount filesystem as readonly")
 	flag.Usage = usage
 	flag.Parse()
 
@@ -50,7 +51,7 @@ func main() {
 	}
 
 	mount := flag.NArg() > 1
-	writable := mount && *version < 0
+	writable := mount && !*readonly && *version < 0
 
 	db, err := newDatabase(flag.Arg(0), *version, writable)
 	if err != nil {
@@ -58,6 +59,14 @@ func main() {
 	}
 
 	if mount {
+		if writable {
+			defer func() {
+				if err := db.save(); err != nil {
+					log.Fatal(err)
+				}
+			}()
+		}
+
 		var options []fuse.MountOption
 		if !writable {
 			options = append(options, fuse.ReadOnly())
@@ -77,12 +86,6 @@ func main() {
 		<-conn.Ready
 		if err := conn.MountError; err != nil {
 			log.Fatal(err)
-		}
-
-		if writable {
-			if err := db.save(); err != nil {
-				log.Fatal(err)
-			}
 		}
 	} else {
 		db.dump()
