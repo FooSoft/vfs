@@ -23,6 +23,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -41,7 +42,7 @@ type database struct {
 	vers verList
 }
 
-func newDatabase(dir string, index int, writable bool) (*database, error) {
+func newDatabase(dir string, index uint, writable bool) (*database, error) {
 	db := &database{base: dir}
 	if err := db.load(dir, index, writable); err != nil {
 		return nil, err
@@ -50,7 +51,7 @@ func newDatabase(dir string, index int, writable bool) (*database, error) {
 	return db, nil
 }
 
-func (db *database) load(dir string, index int, writable bool) error {
+func (db *database) load(dir string, index uint, writable bool) error {
 	var err error
 
 	db.base, err = filepath.Abs(dir)
@@ -67,6 +68,10 @@ func (db *database) load(dir string, index int, writable bool) error {
 	db.vers, err = db.buildVersions(db.base)
 	if err != nil {
 		return err
+	}
+
+	if index > uint(len(db.vers)) {
+		return errors.New("invalid version index")
 	}
 
 	if index > 0 {

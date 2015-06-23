@@ -40,7 +40,7 @@ func usage() {
 }
 
 func main() {
-	version := flag.Int("version", 0, "version index (specify 0 for latest)")
+	version := flag.Uint("version", 0, "version index (0 for head)")
 	readonly := flag.Bool("readonly", false, "mount filesystem as readonly")
 	flag.Usage = usage
 	flag.Parse()
