@@ -57,7 +57,7 @@ func (vf *verFile) version() error {
 		return nil
 	}
 
-	node := newVerNode(vf.node.path, vf.node.ver.db.lastVersion(), vf.node, NodeFlagNew)
+	node := newVerNode(vf.node.path, vf.node.ver.db.lastVer(), vf.node, NodeFlagNew)
 	if _, err := copyFile(vf.node.rebasedPath(), node.rebasedPath()); err != nil {
 		return err
 	}

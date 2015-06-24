@@ -61,7 +61,7 @@ func (vd *verDir) version() error {
 		return nil
 	}
 
-	node := newVerNode(vd.node.path, vd.node.ver.db.lastVersion(), vd.node, NodeFlagDir|NodeFlagNew)
+	node := newVerNode(vd.node.path, vd.node.ver.db.lastVer(), vd.node, NodeFlagDir|NodeFlagNew)
 	if err := os.MkdirAll(node.rebasedPath(), 0755); err != nil {
 		return err
 	}

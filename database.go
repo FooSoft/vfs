@@ -26,9 +26,11 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"bazil.org/fuse/fs"
 )
@@ -42,30 +44,19 @@ type database struct {
 	vers verList
 }
 
-func newDatabase(dir string, index uint, writable bool) (*database, error) {
-	db := &database{base: dir}
-	if err := db.load(dir, index, writable); err != nil {
+func newDatabase(path string) (*database, error) {
+	base, err := filepath.Abs(path)
+	if err != nil {
 		return nil, err
 	}
 
-	return db, nil
+	return &database{base, nil}, nil
 }
 
-func (db *database) load(dir string, index uint, writable bool) error {
+func (db *database) load(index uint) error {
 	var err error
 
-	db.base, err = filepath.Abs(dir)
-	if err != nil {
-		return err
-	}
-
-	if writable {
-		if err := buildNewVersion(db.base); err != nil {
-			return err
-		}
-	}
-
-	db.vers, err = db.buildVersions(db.base)
+	db.vers, err = db.loadVers(db.base)
 	if err != nil {
 		return err
 	}
@@ -78,7 +69,7 @@ func (db *database) load(dir string, index uint, writable bool) error {
 		db.vers = db.vers[:index]
 	}
 
-	if lastVer := db.lastVersion(); lastVer != nil {
+	if lastVer := db.lastVer(); lastVer != nil {
 		return lastVer.resolve()
 	}
 
@@ -86,7 +77,7 @@ func (db *database) load(dir string, index uint, writable bool) error {
 }
 
 func (db *database) save() error {
-	lastVer := db.lastVersion()
+	lastVer := db.lastVer()
 
 	for _, ver := range db.vers {
 		if err := ver.finalize(ver == lastVer); err != nil {
@@ -97,7 +88,7 @@ func (db *database) save() error {
 	return nil
 }
 
-func (db *database) buildVersions(base string) (verList, error) {
+func (db *database) loadVers(base string) (verList, error) {
 	nodes, err := ioutil.ReadDir(base)
 	if err != nil {
 		return nil, err
@@ -114,7 +105,7 @@ func (db *database) buildVersions(base string) (verList, error) {
 			return nil, err
 		}
 
-		ver, err := newVersion(path.Join(base, node.Name()), timestamp, db)
+		ver, err := newVer(path.Join(base, node.Name()), timestamp, db)
 		if err != nil {
 			return nil, err
 		}
@@ -133,13 +124,22 @@ func (db *database) buildVersions(base string) (verList, error) {
 	return vers, nil
 }
 
-func (db *database) lastVersion() *version {
+func (db *database) lastVer() *version {
 	count := len(db.vers)
 	if count == 0 {
 		return nil
 	}
 
 	return db.vers[count-1]
+}
+
+func (db *database) createNewVer() error {
+	name := buildVerName(time.Now())
+	if err := os.MkdirAll(path.Join(db.base, name, "root"), 0755); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (db *database) dump() {
@@ -150,5 +150,5 @@ func (db *database) dump() {
 
 // FS
 func (db *database) Root() (fs.Node, error) {
-	return db.lastVersion().root, nil
+	return db.lastVer().root, nil
 }

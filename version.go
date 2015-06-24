@@ -44,7 +44,7 @@ type version struct {
 	db        *database
 }
 
-func newVersion(base string, timestamp time.Time, db *database) (*version, error) {
+func newVer(base string, timestamp time.Time, db *database) (*version, error) {
 	meta, err := newVerMeta(filepath.Join(base, "meta.json"))
 	if err != nil {
 		return nil, err

@@ -50,25 +50,27 @@ func main() {
 		os.Exit(2)
 	}
 
-	mount := flag.NArg() > 1
-	writable := mount && !*readonly && *version == 0
+	mountable := flag.NArg() > 1
+	mutable := mountable && !*readonly && *version == 0
 
-	db, err := newDatabase(flag.Arg(0), *version, writable)
+	db, err := newDatabase(flag.Arg(0))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if mount {
-		if writable {
-			defer func() {
-				if err := db.save(); err != nil {
-					log.Fatal(err)
-				}
-			}()
+	if mutable {
+		if err := db.createNewVer(); err != nil {
+			log.Fatal(err)
 		}
+	}
 
+	if err := db.load(*version); err != nil {
+		log.Fatal(err)
+	}
+
+	if mountable {
 		var options []fuse.MountOption
-		if !writable {
+		if !mutable {
 			options = append(options, fuse.ReadOnly())
 		}
 
@@ -78,14 +80,19 @@ func main() {
 		}
 		defer conn.Close()
 
-		err = fs.Serve(conn, db)
-		if err != nil {
+		if err := fs.Serve(conn, db); err != nil {
 			log.Fatal(err)
 		}
 
 		<-conn.Ready
 		if err := conn.MountError; err != nil {
 			log.Fatal(err)
+		}
+
+		if mutable {
+			if err := db.save(); err != nil {
+				log.Fatal(err)
+			}
 		}
 	} else {
 		db.dump()

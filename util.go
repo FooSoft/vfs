@@ -27,7 +27,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"regexp"
 	"strconv"
 	"sync/atomic"
@@ -60,15 +59,6 @@ func copyFile(src, dst string) (int64, error) {
 	defer dstFile.Close()
 
 	return io.Copy(srcFile, dstFile)
-}
-
-func buildNewVersion(base string) error {
-	name := buildVerName(time.Now())
-	if err := os.MkdirAll(path.Join(base, name, "root"), 0755); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func buildVerName(timestamp time.Time) string {
