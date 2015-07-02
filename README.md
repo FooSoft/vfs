@@ -45,8 +45,25 @@ In the output above, the `database` parameter refers to a directory containing V
 valid database.  The `mountpoint` parameter refers to the path on your system where the file system will be accessible
 (mounted).
 
-In order to mount a new or existing volume, follow the steps below:
+### Listing Volume Versions ###
 
-1.  Add yourself to the `fuse` user group if you are not added already (a requirement of FUSE).
-2.  Execute `./vfs database_dir mountpoint_dir`, using actual paths on your system to mount a volume.
+Specifying a database path without the mount point will output a timestamped listing of available versions. This listing
+includes identifiers which can be used to specify a specific version to mount with the `-version` parameter. Note that
+only read-only mounting is possible of prior versions.
+
+```
+version: 1  time: 2015-06-19 11:14:13 +0900 JST
+version: 2  time: 2015-06-20 13:08:04 +0900 JST
+version: 3  time: 2015-06-22 15:12:09 +0900 JST
+version: 4  time: 2015-06-24 12:41:43 +0900 JST
+```
+
+### Mounting a Volume ###
+
+1.  Add yourself to the `fuse` user group if you are not added already (a requirement of FUSE). You can optionally skip
+    this step by mounting the volume as the `root` user, but this is not recommended.
+2.  Execute `./vfs database_dir mountpoint_dir`, using actual paths on your system to mount a volume. If you wish to
+    provide an identifier for a specific version to mount, you may specify it with the `-version` parameter. Passing a
+    non-zero value (zero indicates most recent version) will make the mount read-only. Explicit read-only mounting is
+    also possible by setting the `-readonly` switch.
 3.  When you are finished using the volume, unmount it via the `fusermount -u mountpoint_dir` command.
