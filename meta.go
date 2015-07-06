@@ -28,7 +28,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"sync"
 )
 
 //
@@ -43,11 +42,10 @@ type verMeta struct {
 	path     string
 	deleted  map[string]bool
 	modified bool
-	mutex    sync.Mutex
 }
 
 func newVerMeta(path string) (*verMeta, error) {
-	meta := &verMeta{path, make(map[string]bool), false, sync.Mutex{}}
+	meta := &verMeta{path, make(map[string]bool), false}
 	if err := meta.load(); err != nil {
 		return nil, err
 	}
@@ -70,18 +68,12 @@ func (m *verMeta) filter(nodes verNodeMap) {
 }
 
 func (m *verMeta) removeNode(path string) {
-	m.mutex.Lock()
 	m.deleted[path] = true
-	m.mutex.Unlock()
-
 	m.modified = true
 }
 
 func (m *verMeta) createNode(path string) {
-	m.mutex.Lock()
 	m.deleted[path] = false
-	m.mutex.Unlock()
-
 	m.modified = true
 }
 
