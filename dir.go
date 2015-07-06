@@ -26,6 +26,7 @@ import (
 	"errors"
 	"os"
 	"path"
+	"sync"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
@@ -42,16 +43,20 @@ type verDir struct {
 	node   *verNode
 	inode  uint64
 	parent *verDir
+	mutex  sync.Mutex
 }
 
 func newVerDir(node *verNode, parent *verDir) *verDir {
 	dirs := make(map[string]*verDir)
 	files := make(map[string]*verFile)
 
-	return &verDir{dirs, files, node, allocInode(), parent}
+	return &verDir{dirs, files, node, allocInode(), parent, sync.Mutex{}}
 }
 
 func (vd *verDir) version() error {
+	vd.mutex.Lock()
+	defer vd.mutex.Unlock()
+
 	if vd.node.flags&NodeFlagNew == NodeFlagNew {
 		return nil
 	}
@@ -80,7 +85,9 @@ func (vd *verDir) createDir(name string) (*verDir, error) {
 	node := newVerNode(childPath, vd.node.ver, nil, NodeFlagDir|NodeFlagNew)
 	dir := newVerDir(node, vd)
 
+	vd.mutex.Lock()
 	vd.dirs[name] = dir
+	vd.mutex.Unlock()
 
 	node.ver.meta.createNode(node.path)
 	return dir, nil
@@ -100,13 +107,18 @@ func (vd *verDir) createFile(name string, flags fuse.OpenFlags, mode os.FileMode
 		return nil, nil, 0, err
 	}
 
+	vd.mutex.Lock()
 	vd.files[name] = file
+	vd.mutex.Unlock()
 
 	node.ver.meta.createNode(node.path)
 	return file, handle, id, nil
 }
 
 func (vd *verDir) removeDir(name string) error {
+	vd.mutex.Lock()
+	defer vd.mutex.Unlock()
+
 	if err := vd.version(); err != nil {
 		return err
 	}
@@ -125,6 +137,9 @@ func (vd *verDir) removeDir(name string) error {
 }
 
 func (vd *verDir) removeFile(name string) error {
+	vd.mutex.Lock()
+	defer vd.mutex.Unlock()
+
 	if err := vd.version(); err != nil {
 		return err
 	}
@@ -193,6 +208,9 @@ func (vd *verDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 
 // NodeRequestLookuper
 func (vd *verDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	vd.mutex.Lock()
+	defer vd.mutex.Unlock()
+
 	if dir, ok := vd.dirs[name]; ok {
 		return dir, nil
 	}
@@ -206,6 +224,9 @@ func (vd *verDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 
 // HandleReadDirAller
 func (vd *verDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+	vd.mutex.Lock()
+	defer vd.mutex.Unlock()
+
 	entries := []fuse.Dirent{{Inode: vd.inode, Name: ".", Type: fuse.DT_Dir}}
 	if vd.parent != nil {
 		entry := fuse.Dirent{Inode: vd.parent.inode, Name: "..", Type: fuse.DT_Dir}

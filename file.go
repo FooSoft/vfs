@@ -24,6 +24,7 @@ package main
 
 import (
 	"os"
+	"sync"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
@@ -41,13 +42,17 @@ type verFile struct {
 	inode   uint64
 	parent  *verDir
 	handles handleMap
+	mutex   sync.Mutex
 }
 
 func newVerFile(node *verNode, parent *verDir) *verFile {
-	return &verFile{node, allocInode(), parent, make(handleMap)}
+	return &verFile{node, allocInode(), parent, make(handleMap), sync.Mutex{}}
 }
 
 func (vf *verFile) version() error {
+	vf.mutex.Lock()
+	defer vf.mutex.Unlock()
+
 	if vf.node.flags&NodeFlagNew == NodeFlagNew {
 		return nil
 	}
@@ -80,13 +85,17 @@ func (vf *verFile) open(flags fuse.OpenFlags, mode os.FileMode) (*verFileHandle,
 	id := allocHandleId()
 	verHandle := &verFileHandle{vf, path, handle}
 
+	vf.mutex.Lock()
 	vf.handles[id] = verHandle
+	vf.mutex.Unlock()
 
 	return verHandle, id, nil
 }
 
 func (vf *verFile) release(handle fuse.HandleID) {
+	vf.mutex.Lock()
 	delete(vf.handles, handle)
+	vf.mutex.Unlock()
 }
 
 // Node
@@ -119,6 +128,8 @@ func (vf *verFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.O
 
 // NodeFsyncer
 func (vf *verFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
+	vf.mutex.Lock()
+	defer vf.mutex.Unlock()
 	return vf.handles[req.Handle].handle.Sync()
 }
 
