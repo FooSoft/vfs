@@ -120,7 +120,7 @@ cheese  pepperoni
 
 Some points of interest about this structure:
 
-*   Database directory contains the new version; the value `00000000559a17e4` is the creation time stamp in hex.
+*   Database directory contains the new version; the value `00000000559a17e4` is the creation time stamp in hexadecimal.
 *   The `meta.json` file contains information about deletions; it is empty for now.
 *   The `root` directory contains the files that were created or modified in this version.
 
