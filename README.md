@@ -75,7 +75,8 @@ empty directory is a valid empty version database and mount points should by alw
 directories (`db` for the database and `mp` for the mount point).
 
 ```
-alex@wintermute ~/vfs> mkdir db mp; ls
+$ mkdir db mp
+$ ls
 db/  mp/
 ```
 
@@ -83,30 +84,27 @@ Now let's mount the empty database directory `db` onto our mount point `mp` (not
 group or `root` in order for this to work):
 
 ```
-alex@wintermute ~/vfs> vfs db mp
+$ vfs db mp
 ```
 
 Using a new terminal window, let's create some files and directories:
 
 ```
-alex@wintermute ~/vfs> echo hello > mp/greeting.txt; mkdir mp/pizza; touch mp/pizza/pepperoni mp/pizza/cheese; ls -R mp
-mp:
-greeting.txt  pizza/
-
-mp/pizza:
-cheese  pepperoni
+$ echo hello > mp/greeting.txt
+$ mkdir mp/pizza
+$ touch mp/pizza/pepperoni mp/pizza/cheese
 ```
 
 Now that we are finished working with this version, let's unmount it:
 
 ```
-alex@wintermute ~/vfs> fusermount -u mp
+$ fusermount -u mp
 ```
 
 Let's take a look at the version structure that VFS has created in the database directory:
 
 ```
-alex@wintermute ~/vfs> ls -R db
+$ ls -R db
 db:
 ver_00000000559a17e4/
 
@@ -129,20 +127,23 @@ Some points of interest about this structure:
 Let's continue our walkthrough by mounting the now non-empty database once more:
 
 ```
-alex@wintermute ~/vfs> vfs db mp
+$ vfs db mp
 ```
 
 Now let's make a couple of changes to the files and directory structure:
 
 ```
-echo こんにちは > mp/greeting.txt; rm mp/pizza/pepperoni; touch mp/pizza/bacon
+$ echo こんにちは > mp/greeting.txt
+$ rm mp/pizza/pepperoni
+$ touch mp/pizza/bacon
 ```
 
 ...and verify that everything is as it should be; looks good so far!
 
 ```
-alex@wintermute ~/vfs> cat mp/greeting.txt; ls -R mp
+$ cat mp/greeting.txt
 こんにちは
+$ ls -R mp
 mp:
 greeting.txt  pizza/
 
@@ -153,7 +154,8 @@ bacon  cheese
 Now let's unmount and examine at the contents of the database directory:
 
 ```
-alex@wintermute ~/vfs> fusermount -u mp; ls -l db
+$ fusermount -u mp
+$ ls -l db
 total 8
 drwxr-xr-x 3 alex alex 4096 Jul  6 14:58 ver_00000000559a17e4/
 drwxr-xr-x 3 alex alex 4096 Jul  6 15:08 ver_00000000559a19b4/
@@ -162,7 +164,7 @@ drwxr-xr-x 3 alex alex 4096 Jul  6 15:08 ver_00000000559a19b4/
 Cool, we have a new version! Let's take a closer look at its structure:
 
 ```
-alex@wintermute ~/vfs> ls -R db/ver_00000000559a19b4/
+$ ls -R db/ver_00000000559a19b4/
 db/ver_00000000559a19b4/:
 meta.json  root/
 
@@ -178,14 +180,14 @@ respectively. Notice that `cheese` is not listed; we didn't make any changes to 
 version is used. If we look at the contents of `meta.json`, we will see that the `pepperoni` file was deleted:
 
 ```
-alex@wintermute ~/vfs> cat db/ver_00000000559a19b4/meta.json
+$ cat db/ver_00000000559a19b4/meta.json
 {"deleted":["/pizza/pepperoni"]}
 ```
 
 Now let's examine the database from VFS tool directly:
 
 ```
-alex@wintermute ~/vfs> vfs db
+$ vfs db
 version: 1      time: 2015-07-06 14:53:40 +0900 JST
 version: 2      time: 2015-07-06 15:01:24 +0900 JST
 ```
@@ -194,14 +196,15 @@ Finally, let's mount the version that we created in the beginning of this walkth
 `version` parameter...
 
 ```
-alex@wintermute ~/vfs> vfs -version=1 db mp
+$ vfs -version=1 db mp
 ```
 
 ...and in a different terminal verify its contents; they are identical to the first version!
 
 ```
-alex@wintermute ~/vfs> cat mp/greeting.txt; ls -R mp
+$ cat mp/greeting.txt
 Hello
+$ ls -R mp
 mp:
 greeting.txt  pizza/
 
