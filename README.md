@@ -67,3 +67,148 @@ version: 4  time: 2015-06-24 12:41:43 +0900 JST
     non-zero value (zero indicates most recent version) will make the mount read-only. Explicit read-only mounting is
     also possible by setting the `-readonly` switch.
 3.  When you are finished using the volume, unmount it via the `fusermount -u mountpoint_dir` command.
+
+## Walkthrough ##
+
+When you execute VFS for the first time, you will probably neither have a version database nor a mount point.  Since an
+empty directory is a valid empty version database and mount points should by always be empty, let's create two new
+directories (`db` for the database and `mp` for the mount point).
+
+```
+alex@wintermute ~/vfs> mkdir db mp; ls
+db/  mp/
+```
+
+Now let's mount the empty database directory `db` onto our mount point `mp` (note that you have to be in the `fuse`
+group or `root` in order for this to work):
+
+```
+alex@wintermute ~/vfs> vfs db mp
+```
+
+Using a new terminal window, let's create some files and directories:
+
+```
+alex@wintermute ~/vfs> echo hello > mp/greeting.txt; mkdir mp/pizza; touch mp/pizza/pepperoni mp/pizza/cheese; ls -R mp
+mp:
+greeting.txt  pizza/
+
+mp/pizza:
+cheese  pepperoni
+```
+
+Now that we are finished working with this version, let's unmount it:
+
+```
+alex@wintermute ~/vfs> fusermount -u mp
+```
+
+Let's take a look at the version structure that VFS has created in the database directory:
+
+```
+alex@wintermute ~/vfs> ls -R db
+db:
+ver_00000000559a17e4/
+
+db/ver_00000000559a17e4:
+meta.json  root/
+
+db/ver_00000000559a17e4/root:
+greeting.txt  pizza/
+
+db/ver_00000000559a17e4/root/pizza:
+cheese  pepperoni
+```
+
+Some points of interest about this structure:
+
+*   Database directory contains the new version; the value `00000000559a17e4` is the creation time stamp in hex.
+*   The `meta.json` file contains information about deletions; it is empty for now.
+*   The `root` directory contains the files that were created or modified in this version.
+
+Let's continue our walkthrough by mounting the now non-empty database once more:
+
+```
+alex@wintermute ~/vfs> vfs db mp
+```
+
+Now let's make a couple of changes to the files and directory structure:
+
+```
+echo こんにちは > mp/greeting.txt; rm mp/pizza/pepperoni; touch mp/pizza/bacon
+```
+
+...and verify that everything is as it should be; looks good so far!
+
+```
+alex@wintermute ~/vfs> cat mp/greeting.txt; ls -R mp
+こんにちは
+mp:
+greeting.txt  pizza/
+
+mp/pizza:
+bacon  cheese
+```
+
+Now let's unmount and examine at the contents of the database directory:
+
+```
+alex@wintermute ~/vfs> fusermount -u mp; ls -l db
+total 8
+drwxr-xr-x 3 alex alex 4096 Jul  6 14:58 ver_00000000559a17e4/
+drwxr-xr-x 3 alex alex 4096 Jul  6 15:08 ver_00000000559a19b4/
+```
+
+Cool, we have a new version! Let's take a closer look at its structure:
+
+```
+alex@wintermute ~/vfs> ls -R db/ver_00000000559a19b4/
+db/ver_00000000559a19b4/:
+meta.json  root/
+
+db/ver_00000000559a19b4/root:
+greeting.txt  pizza/
+
+db/ver_00000000559a19b4/root/pizza:
+bacon
+```
+
+We can see that `greeting.txt` and `bacon` show up; this reflects the fact that these files were modified and created,
+respectively. Notice that `cheese` is not listed; we didn't make any changes to this file so the data from the previous
+version is used. If we look at the contents of `meta.json`, we will see that the `pepperoni` file was deleted:
+
+```
+alex@wintermute ~/vfs> cat db/ver_00000000559a19b4/meta.json
+{"deleted":["/pizza/pepperoni"]}
+```
+
+Now let's examine the database from VFS tool directly:
+
+```
+alex@wintermute ~/vfs> vfs db
+version: 1      time: 2015-07-06 14:53:40 +0900 JST
+version: 2      time: 2015-07-06 15:01:24 +0900 JST
+```
+
+Finally, let's mount the version that we created in the beginning of this walkthrough by specifying its index with the
+`version` parameter...
+
+```
+alex@wintermute ~/vfs> vfs -version=1 db mp
+```
+
+...and in a different terminal verify its contents; they are identical to the first version!
+
+```
+alex@wintermute ~/vfs> cat mp/greeting.txt; ls -R mp
+Hello
+mp:
+greeting.txt  pizza/
+
+mp/pizza:
+cheese  pepperoni
+```
+
+Hopefully this brief walkthrough of the system helped illustrate the basic concepts behind how VFS works. At its core,
+it is a fundamentally simple system, the workings of which can be examined with any file browser and text editor. I
+encourage those interested in this utility to follow this walkthrough and to ask me any questions they may have.
