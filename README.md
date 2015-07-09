@@ -24,7 +24,7 @@ mounting specific snapshots, the user is capable of browsing the version data di
 
 If you already have the Go environment and toolchain set up, you can get the latest version by running:
 ```
-go get github.com/FooSoft/vfs
+$ go get github.com/FooSoft/vfs
 ```
 Users of Debian-based distributions can use [godeb](https://github.com/niemeyer/godeb) to quickly install the Go
 compiler on their machines.
