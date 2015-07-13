@@ -13,12 +13,18 @@ My goal was to build file system which could handle changes to file data and dir
 in a simple, transparent way. I wanted to avoid storing version information in binary blobs, which are completely
 incomprehensible to the user. I strongly believed that the user should not be locked into a versioning scheme that
 prevented trivial migration or export of data. As such, versioned file data is stored in timestamped directories on a
-host file system (with minimal metadata stored in a human-readable format).
+host file system (with minimal metadata stored in a human-readable format). This approach is fundamentally different
+from that of other tools.
 
 Each version consists of a root node and child nodes that represent modified files or directories for that version;
 unmodified data is not duplicated between versions. Other information (such as records about file and directory
 deletions) are stored in a JSON file next to the version root. Although VFS provides a mechanism for enumerating and
 mounting specific snapshots, the user is capable of browsing the version data directly if they choose to do so.
+
+Golang was selected as the language of choice for this project as it combines the performance and safety of a compiled
+language without sacrificing the readability and maintainability of a high level scripting language such as Python.
+Furthermore, the fact that Golang programs are statically linked ensures that binaries will be compatible between
+various Linux distribution; recompilation is not required.
 
 ## Installation ##
 
@@ -133,7 +139,7 @@ $ vfs db mp
 Now let's make a couple of changes to the files and directory structure:
 
 ```
-$ echo こんにちは > mp/greeting.txt
+$ echo howdy > mp/greeting.txt
 $ rm mp/pizza/pepperoni
 $ touch mp/pizza/bacon
 ```
@@ -142,7 +148,7 @@ $ touch mp/pizza/bacon
 
 ```
 $ cat mp/greeting.txt
-こんにちは
+howdy
 $ ls -R mp
 mp:
 greeting.txt  pizza/
@@ -215,3 +221,15 @@ cheese  pepperoni
 Hopefully this brief walkthrough of the system helped illustrate the basic concepts behind how VFS works. At its core,
 it is a fundamentally simple system, the workings of which can be examined with any file browser and text editor. I
 encourage those interested in this utility to follow this walkthrough and to ask me any questions they may have.
+
+## Limitations ##
+
+There are a few lingering limitations of the system in its current state. While the architecture supports their
+inclusion into a future version, I have not yet gotten around to taking care of this "laundry list" of items:
+
+*   Add support for file linking
+*   Further reduce data duplication when:
+    +   File is renamed
+    +   File attributes are modified
+*   Compress shadowed files
+*   Support for Mac OS X
