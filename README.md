@@ -48,7 +48,7 @@ Parameters:
 
 ```
 In the output above, the `database` parameter refers to a directory containing VFS versions; an empty directory is a
-valid database.  The `mountpoint` parameter refers to the path on your system where the file system will be accessible
+valid database. The `mountpoint` parameter refers to the path on your system where the file system will be accessible
 (mounted).
 
 ### Listing Volume Versions ###
@@ -209,7 +209,7 @@ $ vfs -version=1 db mp
 
 ```
 $ cat mp/greeting.txt
-Hello
+hello
 $ ls -R mp
 mp:
 greeting.txt  pizza/
@@ -228,6 +228,7 @@ There are a few lingering limitations of the system in its current state. While 
 inclusion into a future version, I have not yet gotten around to taking care of this "laundry list" of items:
 
 *   Add support for file linking
+*   Handle the `..` directory for root
 *   Further reduce data duplication when:
     +   File is renamed
     +   File attributes are modified
