@@ -1,13 +1,13 @@
-# VFS #
+# Versioning File System #
 
 Versioning File System (uninterestingly abbreviated VFS) is a simple user-space file system implemented on top of
 [FUSE](https://en.wikipedia.org/?title=Filesystem_in_Userspace) with the aid of [Bazil ](https://bazil.org/fuse/),
-written in [Golang](https://golang.org/). Development on this project was started as means to learn more about the way
-Linux handles file systems, while at the same time answering a personal need of an easy to understand, transparent
-versioning file system for data backup. Although it should not yet be considered to be production ready, VFS is already
-usable in its current state.
+written in Golang. Development on this project was started as means to learn more about the way Linux handles file
+systems, while at the same time answering a personal need of an easy to understand, transparent versioning file system
+for data backup. Although it should not yet be considered to be production ready, VFS is already usable in its current
+state.
 
-## Design ##
+## Motivation ##
 
 My goal was to build file system which could handle changes to file data and directory structure between mount cycles,
 in a simple, transparent way. I wanted to avoid storing version information in binary blobs, which are completely
@@ -234,3 +234,7 @@ inclusion into a future version, I have not yet gotten around to taking care of 
     +   File attributes are modified
 *   Compress shadowed files
 *   Support for Mac OS X
+
+## License ##
+
+MIT
