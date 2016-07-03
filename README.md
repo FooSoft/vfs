@@ -1,7 +1,7 @@
 # Versioning File System #
 
 Versioning File System (uninterestingly abbreviated VFS) is a simple user-space file system implemented on top of
-[FUSE](https://en.wikipedia.org/?title=Filesystem_in_Userspace) with the aid of [Bazil ](https://bazil.org/fuse/),
+[FUSE](https://en.wikipedia.org/?title=Filesystem_in_Userspace) with the aid of [Bazil](https://bazil.org/fuse/),
 written in Golang. Development on this project was started as means to learn more about the way Linux handles file
 systems, while at the same time answering a personal need of an easy to understand, transparent versioning file system
 for data backup. Although it should not yet be considered to be production ready, VFS is already usable in its current
@@ -45,7 +45,6 @@ Usage: ./vfs [options] database [mountpoint]
 Parameters:
   -readonly=false: mount filesystem as readonly
   -version=0: version index (0 for head)
-
 ```
 In the output above, the `database` parameter refers to a directory containing VFS versions; an empty directory is a
 valid database. The `mountpoint` parameter refers to the path on your system where the file system will be accessible
@@ -220,7 +219,7 @@ cheese  pepperoni
 
 Hopefully this brief walkthrough of the system helped illustrate the basic concepts behind how VFS works. At its core,
 it is a fundamentally simple system, the workings of which can be examined with any file browser and text editor. I
-encourage those interested in this utility to follow this walkthrough and to ask me any questions they may have.
+encourage those interested in this utility to follow this guide and to ask me any questions they may have.
 
 ## Limitations ##
 
