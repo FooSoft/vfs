@@ -2,10 +2,9 @@
 
 Versioning File System (uninterestingly abbreviated VFS) is a simple user-space file system implemented on top of
 [FUSE](https://en.wikipedia.org/?title=Filesystem_in_Userspace) with the aid of [Bazil](https://bazil.org/fuse/),
-written in Golang. Development on this project was started as means to learn more about the way Linux handles file
-systems, while at the same time answering a personal need of an easy to understand, transparent versioning file system
-for data backup. Although it should not yet be considered to be production ready, VFS is already usable in its current
-state.
+written in Go. Development on this project was started as means to learn more about the way Linux handles file systems,
+while at the same time answering a personal need of an easy to understand, transparent versioning file system for data
+backup. Although it should not yet be considered to be production ready, VFS is already usable in its current state.
 
 ## Motivation ##
 
@@ -21,10 +20,10 @@ unmodified data is not duplicated between versions. Other information (such as r
 deletions) are stored in a JSON file next to the version root. Although VFS provides a mechanism for enumerating and
 mounting specific snapshots, the user is capable of browsing the version data directly if they choose to do so.
 
-Golang was selected as the language of choice for this project as it combines the performance and safety of a compiled
+Go was selected as the language of choice for this project as it combines the performance and safety of a compiled
 language without sacrificing the readability and maintainability of a high level scripting language such as Python.
-Furthermore, the fact that Golang programs are statically linked ensures that binaries will be compatible between
-various Linux distribution; recompilation is not required.
+Furthermore, the fact that Go programs are statically linked ensures that binaries will be compatible between various
+Linux distribution; recompilation is not required.
 
 ## Installation ##
 
