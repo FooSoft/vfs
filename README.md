@@ -36,7 +36,7 @@ compiler on their machines.
 
 ## Usage ##
 
-Usage information can be seen by running VFS without command-line arguments:
+Usage information can be seen by running VFS without command line arguments:
 
 ```
 Usage: ./vfs [options] database [mountpoint]
