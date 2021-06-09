@@ -1,4 +1,4 @@
-# Versioning File System #
+# Versioning File System
 
 Versioning File System (uninterestingly abbreviated VFS) is a simple user-space file system implemented on top of
 [FUSE](https://en.wikipedia.org/?title=Filesystem_in_Userspace) with the aid of [Bazil](https://bazil.org/fuse/),
@@ -6,7 +6,7 @@ written in Go. Development on this project was started as means to learn more ab
 while at the same time answering a personal need of an easy to understand, transparent versioning file system for data
 backup. Although it should not yet be considered to be production ready, VFS is already usable in its current state.
 
-## Motivation ##
+## Motivation
 
 My goal was to build file system which could handle changes to file data and directory structure between mount cycles,
 in a simple, transparent way. I wanted to avoid storing version information in binary blobs, which are completely
@@ -25,7 +25,7 @@ language without sacrificing the readability and maintainability of a high level
 Furthermore, the fact that Go programs are statically linked ensures that binaries will be compatible between various
 Linux distribution; recompilation is not required.
 
-## Installation ##
+## Installation
 
 If you already have the Go environment and toolchain set up, you can get the latest version by running:
 ```
@@ -34,7 +34,7 @@ $ go get github.com/FooSoft/vfs
 Users of Debian-based distributions can use [godeb](https://github.com/niemeyer/godeb) to quickly install the Go
 compiler on their machines.
 
-## Usage ##
+## Usage
 
 Usage information can be seen by running VFS without command line arguments:
 
@@ -49,7 +49,7 @@ In the output above, the `database` parameter refers to a directory containing V
 valid database. The `mountpoint` parameter refers to the path on your system where the file system will be accessible
 (mounted).
 
-### Listing Volume Versions ###
+### Listing Volume Versions
 
 Specifying a database path without the mount point will output a timestamped listing of available versions. This listing
 includes identifiers which can be used to specify a specific version to mount with the `-version` parameter. Note that
@@ -62,7 +62,7 @@ version: 3  time: 2015-06-22 15:12:09 +0900 JST
 version: 4  time: 2015-06-24 12:41:43 +0900 JST
 ```
 
-### Mounting a Volume ###
+### Mounting a Volume
 
 1.  Add yourself to the `fuse` user group if you are not added already (a requirement of FUSE). You can optionally skip
     this step by mounting the volume as the `root` user, but this is not recommended.
@@ -72,7 +72,7 @@ version: 4  time: 2015-06-24 12:41:43 +0900 JST
     also possible by setting the `-readonly` switch.
 3.  When you are finished using the volume, unmount it via the `fusermount -u mountpoint_dir` command.
 
-## Walkthrough ##
+## Walkthrough
 
 When you execute VFS for the first time, you will probably neither have a version database nor a mount point.  Since an
 empty directory is a valid empty version database and mount points should by always be empty, let's create two new
@@ -220,7 +220,7 @@ Hopefully this brief walkthrough of the system helped illustrate the basic conce
 it is a fundamentally simple system, the workings of which can be examined with any file browser and text editor. I
 encourage those interested in this utility to follow this guide and to ask me any questions they may have.
 
-## Limitations ##
+## Limitations
 
 There are a few lingering limitations of the system in its current state. While the architecture supports their
 inclusion into a future version, I have not yet gotten around to taking care of this "laundry list" of items:
