@@ -1,3 +1,12 @@
+<!-- +++
+Area  = "projects"
+GitHub = "vfs"
+Layout = "page"
+Tags  = ["bazil", "fuse", "golang", "vfs", "mit license", "research"]
+Description = "Simple versioning file system created for Linux with FUSE."
+Collection = "ProjectsAbandoned"
++++ -->
+
 # Versioning File System
 
 Versioning File System (uninterestingly abbreviated VFS) is a simple user-space file system implemented on top of
